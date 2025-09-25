@@ -1,0 +1,22 @@
+# Logs and temporary files
+*.log
+*.tmp
+.DS_Store
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS specific
+Thumbs.db
+
+# Installation logs (if created in project directory)
+*-install.log
+*-uninstall.log
+
+# Backup files
+*.bak
+*.orig
