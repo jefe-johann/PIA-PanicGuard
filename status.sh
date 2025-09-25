@@ -112,7 +112,7 @@ if [ "$MANAGE_EXTERNAL_DRIVE" = "true" ]; then
     drive_info=$(diskutil info "$EXTERNAL_DRIVE_NAME" 2>&1)
     if [[ $drive_info == *"could not find disk"* ]]; then
         echo -e "  ${YELLOW}⚠${NC} '$EXTERNAL_DRIVE_NAME' is not currently connected"
-    elif [[ $drive_info == *"Mounted: Yes"* ]]; then
+    elif echo "$drive_info" | grep -q "Mounted:[[:space:]]*Yes"; then
         echo -e "  ${GREEN}✓${NC} '$EXTERNAL_DRIVE_NAME' is mounted and accessible"
     else
         echo -e "  ${YELLOW}⚠${NC} '$EXTERNAL_DRIVE_NAME' is connected but not mounted"
