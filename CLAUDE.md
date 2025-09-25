@@ -92,14 +92,38 @@ The enhanced system integrates with multiple macOS subsystems. Key integration p
 When modifying this project as Claude Code:
 
 1. **Config Changes**: Edit `/usr/local/etc/pia-sleep.conf` - takes effect immediately
-2. **Script Changes**: After editing `pia-sleep.sh` or `pia-wake.sh`:
-   ```bash
-   # Always restart service after script changes
-   sudo launchctl unload /Library/LaunchDaemons/com.pia.sleephandler.plist
-   sudo launchctl load /Library/LaunchDaemons/com.pia.sleephandler.plist
-   ```
+
+2. **Script Changes**: After editing `pia-sleep.sh` or `pia-wake.sh` in the project directory:
+
+**CRITICAL**: Always inform the user to run the update script after script changes:
+
+```bash
+sudo ./update.sh
+```
+
+**What the update script does:**
+- Copies updated scripts from project directory to `/usr/local/bin/`
+- Sets correct permissions and ownership
+- Restarts the LaunchDaemon service
+- Verifies the update was successful
+
 3. **Testing**: Use `./status.sh` to verify all components, `sudo /usr/local/bin/pia-sleep.sh` to test manually
 4. **Verification**: Check `/var/log/pia-sleep.log` for detailed operation logs
+
+### When Script Updates Are Required
+
+**Script File Changes** (requires copy + restart):
+- Editing `pia-sleep.sh` or `pia-wake.sh` in project directory
+- Logic changes, bug fixes, new functionality
+- Process detection patterns, timeout values in scripts
+
+**LaunchDaemon Changes** (requires restart only):
+- Modifying `com.pia.sleephandler.plist`
+
+**No Restart Needed** (config changes):
+- Editing `/usr/local/etc/pia-sleep.conf`
+- Enabling/disabling features
+- Changing timeouts, drive names, app lists
 
 ## Configuration Management
 
