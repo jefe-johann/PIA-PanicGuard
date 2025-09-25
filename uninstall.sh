@@ -63,6 +63,18 @@ remove_launchdaemon() {
     fi
 }
 
+# Remove configuration file
+remove_config() {
+    log_and_echo "INFO" "Removing configuration file..."
+    
+    if [ -f "/usr/local/etc/pia-sleep.conf" ]; then
+        rm -f "/usr/local/etc/pia-sleep.conf"
+        log_and_echo "SUCCESS" "Configuration file removed"
+    else
+        log_and_echo "INFO" "Configuration file was not found"
+    fi
+}
+
 # Remove scripts
 remove_scripts() {
     log_and_echo "INFO" "Removing PIA sleep handler scripts..."
@@ -81,8 +93,10 @@ remove_scripts() {
 cleanup_files() {
     log_and_echo "INFO" "Cleaning up temporary files..."
     
-    # Remove state file
+    # Remove state files
     rm -f "/tmp/pia-was-connected"
+    rm -f "/tmp/torrents-were-running"
+    rm -f "/tmp/drive-was-mounted"
     
     # Ask about log files
     echo
@@ -108,7 +122,7 @@ verify_uninstall() {
     fi
     
     # Check for remaining files
-    for file in "/Library/LaunchDaemons/com.pia.sleephandler.plist" "/usr/local/bin/pia-sleep.sh" "/usr/local/bin/pia-wake.sh"; do
+    for file in "/Library/LaunchDaemons/com.pia.sleephandler.plist" "/usr/local/etc/pia-sleep.conf" "/usr/local/bin/pia-sleep.sh" "/usr/local/bin/pia-wake.sh"; do
         if [ -f "$file" ]; then
             log_and_echo "WARNING" "File still exists: $file"
             ((issues++))
@@ -130,6 +144,7 @@ main() {
     check_root
     stop_service
     remove_launchdaemon
+    remove_config
     remove_scripts
     cleanup_files
     verify_uninstall

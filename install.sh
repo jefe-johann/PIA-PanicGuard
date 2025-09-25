@@ -84,6 +84,23 @@ check_conflicts() {
     log_and_echo "SUCCESS" "No conflicts detected"
 }
 
+# Install configuration file
+install_config() {
+    log_and_echo "INFO" "Installing configuration file..."
+    
+    # Create /usr/local/etc directory if it doesn't exist
+    mkdir -p "/usr/local/etc"
+    
+    # Copy configuration file
+    cp "$SCRIPT_DIR/pia-sleep.conf" "/usr/local/etc/"
+    
+    # Set permissions
+    chmod 644 "/usr/local/etc/pia-sleep.conf"
+    chown root:wheel "/usr/local/etc/pia-sleep.conf"
+    
+    log_and_echo "SUCCESS" "Configuration file installed"
+}
+
 # Install PIA scripts
 install_scripts() {
     log_and_echo "INFO" "Installing PIA sleep handler scripts..."
@@ -162,6 +179,7 @@ main() {
     check_root
     check_prerequisites
     check_conflicts
+    install_config
     install_scripts
     install_launchdaemon
     start_service
@@ -170,14 +188,21 @@ main() {
     log_and_echo "SUCCESS" "Installation completed successfully!"
     echo
     log_and_echo "INFO" "Configuration:"
+    log_and_echo "INFO" "  - Config file: /usr/local/etc/pia-sleep.conf"
     log_and_echo "INFO" "  - Sleep script: /usr/local/bin/pia-sleep.sh"
     log_and_echo "INFO" "  - Wake script: /usr/local/bin/pia-wake.sh"
     log_and_echo "INFO" "  - Service logs: /var/log/pia-sleepwatcher*.log"
     log_and_echo "INFO" "  - Activity logs: /var/log/pia-sleep.log"
     echo
     log_and_echo "INFO" "The service will automatically start at boot."
-    log_and_echo "INFO" "To enable auto-reconnect after wake, edit /usr/local/bin/pia-wake.sh"
-    log_and_echo "INFO" "and set AUTO_RECONNECT=\"true\""
+    echo
+    log_and_echo "INFO" "New Features:"
+    log_and_echo "INFO" "  - Torrent client management (enabled by default)"
+    log_and_echo "INFO" "  - External drive 'Big Dawg' ejection/mounting (enabled by default)"
+    log_and_echo "INFO" "  - Auto-reconnect PIA after wake (enabled by default)"
+    log_and_echo "INFO" "  - Auto-reopen torrent apps after wake (disabled by default)"
+    echo
+    log_and_echo "INFO" "To configure features, edit: /usr/local/etc/pia-sleep.conf"
 }
 
 # Run main function

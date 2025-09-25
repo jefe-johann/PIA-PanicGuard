@@ -4,74 +4,109 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Purpose
 
-This is a macOS system utility that automatically disconnects Private Internet Access (PIA) VPN before system sleep to prevent kernel panics. It uses Homebrew's `sleepwatcher` to monitor system power events and PIA's `piactl` command-line tool for VPN control.
+This is an enhanced macOS system utility that automatically manages torrent clients, external drives, and Private Internet Access (PIA) VPN before/after system sleep to prevent kernel panics and data loss. It uses Homebrew's `sleepwatcher` to monitor system power events and integrates with multiple applications.
 
 ## Architecture Overview
 
-The solution consists of two main bash scripts orchestrated by a macOS LaunchDaemon:
+The solution consists of enhanced bash scripts with comprehensive system management:
 
-- **Sleep Handler (`pia-sleep.sh`)**: Intercepts sleep events, gracefully disconnects PIA with timeout handling, falls back to process termination if needed, and saves connection state
-- **Wake Handler (`pia-wake.sh`)**: Handles wake events and optionally reconnects PIA based on saved state and configuration
-- **LaunchDaemon**: Runs `sleepwatcher` as root at boot, pointing to the sleep/wake scripts
+- **Enhanced Sleep Handler (`pia-sleep.sh`)**: Closes torrent apps → ejects external drive → disconnects PIA VPN with timeout handling and state persistence
+- **Enhanced Wake Handler (`pia-wake.sh`)**: Mounts external drive → reconnects PIA VPN → optionally reopens torrent apps
+- **Configuration File (`pia-sleep.conf`)**: Centralized control of all features, installed to `/usr/local/etc/`
+- **LaunchDaemon**: Runs `sleepwatcher` as root at boot, pointing to the enhanced scripts
 
 ## Key Design Principles
 
-1. **Graceful-first approach**: Always attempt PIA's official `piactl disconnect` before force-killing processes
-2. **Timeout handling**: 10-second timeout on graceful disconnect with fallback mechanisms
-3. **State persistence**: Uses `/tmp/pia-was-connected` to track connection state across sleep/wake cycles
-4. **Comprehensive logging**: All actions logged to `/var/log/pia-sleep.log` with timestamps
-5. **Verification**: Confirms disconnection before allowing sleep to proceed
+1. **Data Safety First**: Proper shutdown order (torrents → drive → VPN) prevents data corruption
+2. **Graceful Operations**: Uses official APIs (`piactl`, `diskutil`, `open`) before force-kill fallbacks
+3. **State Persistence**: Tracks what was running/mounted for proper wake restoration
+4. **Configurable Features**: All components independently controllable via `/usr/local/etc/pia-sleep.conf`
+5. **Comprehensive Logging**: All operations logged to `/var/log/pia-sleep.log` with timestamps
+6. **Verification**: Confirms all operations completed successfully before proceeding
 
 ## Essential Commands
 
 ```bash
-# Check comprehensive service status
+# Check enhanced service status (shows all managed components)
 ./status.sh
 
-# Install the service (requires sudo)
+# Install/upgrade the enhanced service
 sudo ./install.sh
 
 # Remove the service completely
 sudo ./uninstall.sh
 
-# Remove conflicting Realtek sleepwatcher setup
-sudo ./realtek-uninstall.sh
-
-# View live activity logs
+# View live enhanced activity logs (includes torrents/drive/VPN)
 tail -f /var/log/pia-sleep.log
 
-# Test sleep script manually
-sudo /usr/local/bin/pia-sleep.sh
+# Edit centralized configuration (all features)
+sudo nano /usr/local/etc/pia-sleep.conf
 
-# Control the LaunchDaemon service
+# Test enhanced scripts manually
+sudo /usr/local/bin/pia-sleep.sh    # Test full sleep sequence
+sudo /usr/local/bin/pia-wake.sh     # Test full wake sequence
+
+# CRITICAL: Service restart workflow (use after script changes)
 sudo launchctl unload /Library/LaunchDaemons/com.pia.sleephandler.plist
 sudo launchctl load /Library/LaunchDaemons/com.pia.sleephandler.plist
 
-# Check if sleepwatcher process is running with our scripts
-pgrep -fl sleepwatcher
+# Quick status checks
+pgrep -fl sleepwatcher              # Check if sleepwatcher is running
+sudo launchctl list | grep pia      # Check LaunchDaemon status
 ```
 
 ## File Structure and Installation Model
 
 This project uses a "source + system installation" model:
 
-- **Project directory**: Contains source scripts and installation tools
-- **System installation**: Scripts copied to `/usr/local/bin/`, LaunchDaemon to `/Library/LaunchDaemons/`
-- **Configuration**: Auto-reconnect setting is in the installed wake script at `/usr/local/bin/pia-wake.sh` (line 11: `AUTO_RECONNECT="true"`)
+- **Project directory**: Contains source scripts, configuration, and installation tools
+- **System installation**: 
+  - Config: `/usr/local/etc/pia-sleep.conf` (centralized settings)
+  - Scripts: `/usr/local/bin/pia-sleep.sh` and `/usr/local/bin/pia-wake.sh`
+  - LaunchDaemon: `/Library/LaunchDaemons/com.pia.sleephandler.plist`
+  - State files: `/tmp/pia-was-connected`, `/tmp/torrents-were-running`, `/tmp/drive-was-mounted`
 
-The installation process copies files from the project directory to proper system locations, so changes to project files require re-running `install.sh` to take effect.
+**IMPORTANT**: Changes to project scripts require service restart (unload/load LaunchDaemon). Configuration file changes take effect immediately.
 
 ## Critical Dependencies
 
 - **sleepwatcher**: Must be installed via `brew install sleepwatcher`
 - **Private Internet Access**: Must be installed with `piactl` available at `/usr/local/bin/piactl`
-- **Root privileges**: Required for LaunchDaemon installation and sleep/wake event monitoring
+- **External Drive**: "Big Dawg" (configurable in pia-sleep.conf)
+- **Torrent Applications**: Transmission, qBittorrent, Nicotine+, VLC, BiglyBT (configurable)
+- **Root privileges**: Required for LaunchDaemon installation and system-level sleep/wake monitoring
 
 ## Troubleshooting Integration Points
 
-The system integrates with macOS power management at the kernel level through sleepwatcher. Key integration points:
+The enhanced system integrates with multiple macOS subsystems. Key integration points:
 
-- **Power events**: Sleepwatcher receives kernel notifications about sleep/wake transitions
-- **Process management**: Scripts interact with PIA daemon and GUI processes
-- **LaunchDaemon lifecycle**: Service starts at boot and persists through user login/logout
-- **Log integration**: Uses standard `/var/log/` location for system log tools compatibility
+- **Power Management**: Sleepwatcher receives kernel notifications about sleep/wake transitions
+- **Process Management**: Scripts interact with PIA daemon, torrent applications, and system processes
+- **Disk Management**: Uses `diskutil` for safe external drive ejection and mounting
+- **Application Management**: Uses `open` and process control for torrent application lifecycle
+- **LaunchDaemon Lifecycle**: Service starts at boot and persists through user login/logout
+- **Log Integration**: Uses standard `/var/log/` location for system log tools compatibility
+
+## Development Workflow
+
+When modifying this project as Claude Code:
+
+1. **Config Changes**: Edit `/usr/local/etc/pia-sleep.conf` - takes effect immediately
+2. **Script Changes**: After editing `pia-sleep.sh` or `pia-wake.sh`:
+   ```bash
+   # Always restart service after script changes
+   sudo launchctl unload /Library/LaunchDaemons/com.pia.sleephandler.plist
+   sudo launchctl load /Library/LaunchDaemons/com.pia.sleephandler.plist
+   ```
+3. **Testing**: Use `./status.sh` to verify all components, `sudo /usr/local/bin/pia-sleep.sh` to test manually
+4. **Verification**: Check `/var/log/pia-sleep.log` for detailed operation logs
+
+## Configuration Management
+
+All features are controlled via `/usr/local/etc/pia-sleep.conf`:
+- `MANAGE_TORRENTS="true/false"` - Enable torrent client management
+- `MANAGE_EXTERNAL_DRIVE="true/false"` - Enable external drive management  
+- `AUTO_RECONNECT="true/false"` - Auto-reconnect PIA after wake
+- `AUTO_REOPEN_APPS="true/false"` - Auto-reopen torrent apps after wake
+- `EXTERNAL_DRIVE_NAME="Big Dawg"` - Name of external drive to manage
+- `TORRENT_APPS=(...)` - Array of torrent applications to manage
