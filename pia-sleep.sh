@@ -50,11 +50,21 @@ disconnect_pia() {
     log_message "Attempting to quit PIA application gracefully..."
     if osascript -e 'quit app "Private Internet Access"' 2>/dev/null; then
         log_message "PIA quit command sent successfully"
-        # Wait for graceful quit to complete
-        sleep 5
-        return 0
+        
+        # Wait and check for graceful quit completion (retry for up to 15 seconds)
+        for attempt in $(seq 1 8); do
+            sleep 2
+            if ! pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
+                log_message "SUCCESS: PIA gracefully quit after ${attempt}x2 seconds"
+                return 0
+            fi
+            log_message "Waiting for graceful quit... (attempt $attempt/8)"
+        done
+        
+        log_message "WARNING: PIA processes still running after 16 seconds graceful quit timeout"
+        return 1
     else
-        log_message "WARNING: Failed to quit PIA application gracefully"
+        log_message "WARNING: Failed to send quit command to PIA application"
         return 1
     fi
 }
@@ -68,7 +78,7 @@ force_kill_pia() {
     for process in "Private Internet Access" "pia-daemon" "pia-wireguard-go"; do
         if pgrep -f "$process" > /dev/null; then
             log_message "Force killing process: $process"
-            pkill -f "$process"
+            pkill -9 -f "$process"
             killed=1
         fi
     done
@@ -85,7 +95,7 @@ verify_processes_terminated() {
         log_message "SUCCESS: All PIA processes terminated"
         return 0
     else
-        local running_processes=$(pgrep -fl "Private Internet Access\|pia-daemon\|pia-wireguard-go" | cut -d: -f2-)
+        local running_processes=$(pgrep -fl "Private Internet Access|pia-daemon|pia-wireguard-go" | cut -d: -f2-)
         log_message "WARNING: PIA processes still running: $running_processes"
         return 1
     fi
