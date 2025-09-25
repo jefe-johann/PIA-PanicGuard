@@ -77,6 +77,8 @@ mount_external_drive() {
 
 # Function to reopen torrent applications
 reopen_torrent_apps() {
+    local vpn_safe="$1"
+    
     if [ "$MANAGE_TORRENTS" != "true" ]; then
         log_message "Torrent management disabled, skipping"
         return 0
@@ -84,6 +86,13 @@ reopen_torrent_apps() {
     
     if [ "$AUTO_REOPEN_APPS" != "true" ]; then
         log_message "Auto-reopen disabled. Torrent apps remain closed."
+        return 0
+    fi
+    
+    # CRITICAL SAFETY CHECK: Only open torrents if VPN is connected
+    if [ "$vpn_safe" != "true" ]; then
+        log_message "SECURITY: VPN not verified as connected - skipping torrent app reopening for safety"
+        log_message "Torrents will remain closed to prevent IP leakage"
         return 0
     fi
     
@@ -135,6 +144,9 @@ reopen_torrent_apps() {
 log_message "=== Enhanced PIA Wake Handler Started ==="
 log_message "Configuration: Torrents=$MANAGE_TORRENTS, Drive=$MANAGE_EXTERNAL_DRIVE, Auto-reopen=$AUTO_REOPEN_APPS"
 
+# Initialize VPN safety flag - only set to true if PIA is verified connected
+pia_connected=false
+
 # Step 1: Mount external drive first
 mount_external_drive
 
@@ -149,9 +161,9 @@ fi
 
 # Check if PIA was running before sleep
 if [ ! -f "$STATE_FILE" ]; then
-    log_message "PIA was not running before sleep. Nothing to do."
-    # Step 3: Skip torrent app reopening and exit
-    reopen_torrent_apps
+    log_message "PIA was not running before sleep. No VPN reconnection needed."
+    # Step 3: Don't reopen torrents since PIA wasn't running (pia_connected remains false)
+    reopen_torrent_apps "$pia_connected"
     log_message "=== Enhanced Wake Handler Completed ===\\n"
     exit 0
 fi
@@ -191,19 +203,23 @@ if [ "$AUTO_RECONNECT" = "true" ]; then
         
         if [ "$connection_state" = "Connected" ]; then
             log_message "SUCCESS: PIA reconnected successfully"
+            pia_connected=true
         else
             log_message "WARNING: PIA reconnection may have failed (state: $connection_state)"
+            pia_connected=false
         fi
     else
         log_message "ERROR: Failed to initiate PIA reconnection"
+        pia_connected=false
     fi
 else
     log_message "Auto-reconnect disabled. PIA remains disconnected."
     log_message "To enable auto-reconnect, set AUTO_RECONNECT=\"true\" in the config file"
+    pia_connected=false
 fi
 
-# Step 3: Optionally reopen torrent applications
-reopen_torrent_apps
+# Step 3: Optionally reopen torrent applications (only if VPN is safe)
+reopen_torrent_apps "$pia_connected"
 
 log_message "=== Enhanced Wake Handler Completed ===\\n"
 exit 0
