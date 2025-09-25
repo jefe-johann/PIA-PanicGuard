@@ -181,7 +181,7 @@ if [ "$AUTO_RECONNECT" = "true" ]; then
     sleep 3
     
     # Check if PIA is already running, if not try to start it
-    if ! pgrep -f "Private Internet Access\|pia-daemon" > /dev/null; then
+    if ! pgrep -f "Private Internet Access|pia-daemon" > /dev/null; then
         log_message "PIA not running, attempting to start..."
         # Try to start PIA application - this will start the daemon
         open -a "Private Internet Access" 2>/dev/null || log_message "WARNING: Could not start PIA application"

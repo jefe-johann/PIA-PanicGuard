@@ -36,23 +36,25 @@ log_message() {
 
 # Function to disconnect PIA gracefully with timeout
 disconnect_pia() {
-    log_message "Attempting graceful PIA disconnect..."
+    log_message "Attempting graceful PIA disconnect and quit..."
     
-    # Try graceful disconnect with timeout
-    timeout $TIMEOUT "$PIA_CTL" disconnect 2>&1 | while IFS= read -r line; do
-        log_message "piactl: $line"
+    # First try to disconnect (if still connected)
+    "$PIA_CTL" disconnect 2>&1 | while IFS= read -r line; do
+        log_message "piactl disconnect: $line"
     done
     
-    local exit_code=${PIPESTATUS[0]}
+    # Wait a moment for disconnect to process
+    sleep 2
     
-    if [ $exit_code -eq 0 ]; then
-        log_message "Graceful disconnect successful"
+    # Now try to quit the PIA application gracefully
+    log_message "Attempting to quit PIA application gracefully..."
+    if osascript -e 'quit app "Private Internet Access"' 2>/dev/null; then
+        log_message "PIA quit command sent successfully"
+        # Wait for graceful quit to complete
+        sleep 5
         return 0
-    elif [ $exit_code -eq 124 ]; then
-        log_message "WARNING: Graceful disconnect timed out after ${TIMEOUT}s"
-        return 1
     else
-        log_message "WARNING: Graceful disconnect failed with exit code $exit_code"
+        log_message "WARNING: Failed to quit PIA application gracefully"
         return 1
     fi
 }
@@ -79,7 +81,7 @@ force_kill_pia() {
 
 # Function to verify PIA processes are terminated
 verify_processes_terminated() {
-    if ! pgrep -f "Private Internet Access\|pia-daemon\|pia-wireguard-go" > /dev/null; then
+    if ! pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
         log_message "SUCCESS: All PIA processes terminated"
         return 0
     else
@@ -230,7 +232,7 @@ log_message "Current PIA connection state: $connection_state"
 
 # If PIA processes are running, assume it should be reconnected after wake
 # (regardless of current connection state, since PIA may auto-disconnect before sleep)
-if pgrep -f "Private Internet Access\|pia-daemon\|pia-wireguard-go" > /dev/null; then
+if pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
     echo "running" > "$STATE_FILE"
     log_message "PIA was running - will reconnect after wake (connection state was: $connection_state)"
 else
@@ -239,7 +241,7 @@ else
 fi
 
 # Check if PIA processes are running (regardless of connection state)
-if ! pgrep -f "Private Internet Access\|pia-daemon\|pia-wireguard-go" > /dev/null; then
+if ! pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
     log_message "No PIA processes running. Nothing to terminate."
     log_message "=== Enhanced Sleep Handler Completed ===\\n"
     exit 0
