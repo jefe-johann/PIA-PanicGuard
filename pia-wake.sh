@@ -175,41 +175,67 @@ rm -f "$STATE_FILE"
 
 # Check if auto-reconnect is enabled
 if [ "$AUTO_RECONNECT" = "true" ]; then
-    log_message "Auto-reconnect enabled. Ensuring PIA is running and connected..."
+    log_message "Auto-reconnect enabled. Performing clean PIA restart..."
     
     # Wait a moment for system to fully wake up
     sleep 3
     
-    # Check if PIA is already running, if not try to start it
-    if ! pgrep -f "Private Internet Access|pia-daemon" > /dev/null; then
-        log_message "PIA not running, attempting to start..."
-        # Try to start PIA application - this will start the daemon
-        open -a "Private Internet Access" 2>/dev/null || log_message "WARNING: Could not start PIA application"
-        sleep 5
-    else
-        log_message "PIA processes already running"
+    # Step 1: Clean up any lingering PIA processes (may be zombies from force kill)
+    if pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
+        log_message "Found lingering PIA processes, cleaning up..."
+        pkill -9 -f "Private Internet Access" 2>/dev/null || true
+        pkill -9 -f "pia-daemon" 2>/dev/null || true
+        pkill -9 -f "pia-wireguard-go" 2>/dev/null || true
+        sleep 3
     fi
     
-    # Attempt reconnection
-    if "$PIA_CTL" connect 2>&1 | while IFS= read -r line; do
-        log_message "piactl: $line"
-    done; then
-        log_message "PIA reconnection initiated successfully"
+    # Step 2: Start PIA application fresh
+    log_message "Starting PIA application fresh..."
+    if open -a "Private Internet Access" 2>/dev/null; then
+        log_message "PIA application started, waiting for daemon initialization..."
         
-        # Wait and verify connection
-        sleep 5
-        connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
-        log_message "PIA connection state after reconnect: $connection_state"
+        # Step 3: Wait for daemon to fully initialize (up to 15 seconds)
+        daemon_ready=false
+        for attempt in $(seq 1 6); do
+            sleep 2.5
+            if "$PIA_CTL" get connectionstate >/dev/null 2>&1; then
+                log_message "PIA daemon ready after ${attempt}x2.5 seconds"
+                daemon_ready=true
+                break
+            fi
+            log_message "Waiting for PIA daemon... (attempt $attempt/6)"
+        done
         
-        if [ "$connection_state" = "Connected" ]; then
-            log_message "SUCCESS: PIA reconnected successfully"
-            pia_connected=true
+        if [ "$daemon_ready" = "true" ]; then
+            # Step 4: Attempt connection
+            log_message "Attempting PIA connection..."
+            if "$PIA_CTL" connect 2>&1 | while IFS= read -r line; do
+                log_message "piactl: $line"
+            done; then
+                log_message "PIA connection command sent successfully"
+                
+                # Wait and verify connection
+                sleep 5
+                connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
+                log_message "PIA connection state after connect: $connection_state"
+                
+                if [ "$connection_state" = "Connected" ]; then
+                    log_message "SUCCESS: PIA clean restart and connection successful"
+                    pia_connected=true
+                else
+                    log_message "WARNING: PIA connection may have failed (state: $connection_state)"
+                    pia_connected=false
+                fi
+            else
+                log_message "ERROR: Failed to send PIA connection command"
+                pia_connected=false
+            fi
         else
-            log_message "WARNING: PIA reconnection may have failed (state: $connection_state)"
+            log_message "ERROR: PIA daemon failed to initialize within 15 seconds"
             pia_connected=false
         fi
     else
-        log_message "ERROR: Failed to initiate PIA reconnection"
+        log_message "ERROR: Failed to start PIA application"
         pia_connected=false
     fi
 else

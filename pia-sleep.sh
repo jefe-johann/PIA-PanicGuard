@@ -38,13 +38,19 @@ log_message() {
 disconnect_pia() {
     log_message "Attempting graceful PIA disconnect and quit..."
     
-    # First try to disconnect (if still connected)
+    # First try to disable background mode (helps with cleaner shutdown)
+    log_message "Disabling PIA background mode..."
+    "$PIA_CTL" background disable 2>&1 | while IFS= read -r line; do
+        log_message "piactl background disable: $line"
+    done
+    
+    # Then disconnect (if still connected)
     "$PIA_CTL" disconnect 2>&1 | while IFS= read -r line; do
         log_message "piactl disconnect: $line"
     done
     
     # Wait a moment for disconnect to process
-    sleep 2
+    sleep 3
     
     # Now try to quit the PIA application gracefully
     log_message "Attempting to quit PIA application gracefully..."
