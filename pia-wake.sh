@@ -7,6 +7,7 @@ LOG_FILE="/var/log/pia-sleep.log"
 STATE_FILE="/tmp/pia-was-connected"
 TORRENT_STATE_FILE="/tmp/torrents-were-running"
 DRIVE_STATE_FILE="/tmp/drive-was-mounted"
+LOCK_FILE="/tmp/pia-sleep-in-progress"
 CONFIG_FILE="/usr/local/etc/pia-sleep.conf"
 PIA_CTL="/usr/local/bin/piactl"
 
@@ -142,6 +143,31 @@ reopen_torrent_apps() {
 
 # Main execution
 log_message "=== Enhanced PIA Wake Handler Started ==="
+
+# Check if sleep handler is still running (race condition protection)
+if [ -f "$LOCK_FILE" ]; then
+    sleep_start_time=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+    current_time=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    log_message "Found sleep handler lock file (started: $sleep_start_time)"
+    log_message "Sleep handler may still be running, waiting briefly..."
+    
+    # Wait up to 10 seconds for sleep handler to finish
+    for wait_attempt in $(seq 1 10); do
+        sleep 1
+        if [ ! -f "$LOCK_FILE" ]; then
+            log_message "Sleep handler completed, proceeding with wake"
+            break
+        fi
+        if [ $wait_attempt -eq 10 ]; then
+            log_message "Sleep handler taking too long, removing stale lock and proceeding"
+            rm -f "$LOCK_FILE"
+        fi
+    done
+else
+    log_message "No sleep handler lock found, proceeding normally"
+fi
+
 log_message "Configuration: Torrents=$MANAGE_TORRENTS, Drive=$MANAGE_EXTERNAL_DRIVE, Auto-reopen=$AUTO_REOPEN_APPS"
 
 # Initialize VPN safety flag - only set to true if PIA is verified connected
@@ -180,62 +206,92 @@ if [ "$AUTO_RECONNECT" = "true" ]; then
     # Wait a moment for system to fully wake up
     sleep 3
     
-    # Step 1: Clean up any lingering PIA processes (may be zombies from force kill)
-    if pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
-        log_message "Found lingering PIA processes, cleaning up..."
-        pkill -9 -f "Private Internet Access" 2>/dev/null || true
-        pkill -9 -f "pia-daemon" 2>/dev/null || true
-        pkill -9 -f "pia-wireguard-go" 2>/dev/null || true
-        sleep 3
+    # Step 1: Check if PIA GUI is already running and functional
+    gui_needs_start=true
+    if pgrep -x "Private Internet Access" > /dev/null; then
+        log_message "PIA GUI already running, checking if it's functional..."
+        
+        # Check if the running GUI is responsive
+        if "$PIA_CTL" get connectionstate >/dev/null 2>&1; then
+            log_message "PIA GUI is functional, proceeding to connection check"
+            gui_needs_start=false
+        else
+            log_message "PIA GUI appears unresponsive, cleaning up..."
+            pkill -9 -x "Private Internet Access" 2>/dev/null || true
+            sleep 3
+        fi
     fi
     
-    # Step 2: Start PIA application fresh
-    log_message "Starting PIA application fresh..."
-    if open -a "Private Internet Access" 2>/dev/null; then
-        log_message "PIA application started, waiting for daemon initialization..."
-        
-        # Step 3: Wait for daemon to fully initialize (up to 15 seconds)
-        daemon_ready=false
-        for attempt in $(seq 1 6); do
-            sleep 2.5
-            if "$PIA_CTL" get connectionstate >/dev/null 2>&1; then
-                log_message "PIA daemon ready after ${attempt}x2.5 seconds"
-                daemon_ready=true
-                break
+    # Step 2: Start PIA application if needed
+    if [ "$gui_needs_start" = "true" ]; then
+        log_message "Starting PIA GUI application..."
+        if open -g -a "Private Internet Access" 2>/dev/null; then
+            log_message "PIA application started in background, waiting for daemon initialization..."
+            
+            # Wait for daemon to fully initialize (up to 15 seconds)
+            daemon_ready=false
+            for attempt in $(seq 1 6); do
+                sleep 2.5
+                if "$PIA_CTL" get connectionstate >/dev/null 2>&1; then
+                    log_message "PIA daemon ready after ${attempt}x2.5 seconds"
+                    daemon_ready=true
+                    break
+                fi
+                log_message "Waiting for PIA daemon... (attempt $attempt/6)"
+            done
+            
+            if [ "$daemon_ready" != "true" ]; then
+                log_message "ERROR: PIA daemon failed to initialize within 15 seconds"
+                pia_connected=false
+                # Skip connection attempt
             fi
-            log_message "Waiting for PIA daemon... (attempt $attempt/6)"
-        done
-        
-        if [ "$daemon_ready" = "true" ]; then
-            # Step 4: Attempt connection
+        else
+            log_message "ERROR: Failed to start PIA application"
+            pia_connected=false
+            # Skip connection attempt
+        fi
+    fi
+    
+    # Step 3: Attempt connection (whether GUI was already running or just started)
+    if [ "$gui_needs_start" = "false" ] || [ "$daemon_ready" = "true" ]; then
             log_message "Attempting PIA connection..."
             if "$PIA_CTL" connect 2>&1 | while IFS= read -r line; do
                 log_message "piactl: $line"
             done; then
                 log_message "PIA connection command sent successfully"
                 
-                # Wait and verify connection
-                sleep 5
-                connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
-                log_message "PIA connection state after connect: $connection_state"
+                # Wait for connection to complete (up to 30 seconds)
+                connection_successful=false
+                for connect_attempt in $(seq 1 12); do
+                    sleep 2.5
+                    connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
+                    log_message "PIA connection state: $connection_state (attempt $connect_attempt/12)"
+                    
+                    if [ "$connection_state" = "Connected" ]; then
+                        log_message "SUCCESS: PIA clean restart and connection successful"
+                        connection_successful=true
+                        break
+                    elif [ "$connection_state" = "Connecting" ]; then
+                        log_message "PIA still connecting, waiting..."
+                        continue
+                    elif [ "$connection_state" = "Disconnected" ]; then
+                        log_message "WARNING: PIA connection failed (returned to Disconnected state)"
+                        break
+                    fi
+                done
                 
-                if [ "$connection_state" = "Connected" ]; then
-                    log_message "SUCCESS: PIA clean restart and connection successful"
+                if [ "$connection_successful" = "true" ]; then
                     pia_connected=true
                 else
-                    log_message "WARNING: PIA connection may have failed (state: $connection_state)"
+                    log_message "WARNING: PIA connection did not complete within 30 seconds (final state: $connection_state)"
                     pia_connected=false
                 fi
             else
                 log_message "ERROR: Failed to send PIA connection command"
                 pia_connected=false
             fi
-        else
-            log_message "ERROR: PIA daemon failed to initialize within 15 seconds"
-            pia_connected=false
-        fi
     else
-        log_message "ERROR: Failed to start PIA application"
+        log_message "PIA GUI not functional or could not be started, skipping connection"
         pia_connected=false
     fi
 else

@@ -7,6 +7,7 @@ LOG_FILE="/var/log/pia-sleep.log"
 STATE_FILE="/tmp/pia-was-connected"
 TORRENT_STATE_FILE="/tmp/torrents-were-running"
 DRIVE_STATE_FILE="/tmp/drive-was-mounted"
+LOCK_FILE="/tmp/pia-sleep-in-progress"
 CONFIG_FILE="/usr/local/etc/pia-sleep.conf"
 TIMEOUT=10
 PIA_CTL="/usr/local/bin/piactl"
@@ -60,14 +61,14 @@ disconnect_pia() {
         # Wait and check for graceful quit completion (retry for up to 15 seconds)
         for attempt in $(seq 1 8); do
             sleep 2
-            if ! pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
-                log_message "SUCCESS: PIA gracefully quit after ${attempt}x2 seconds"
+            if ! pgrep -x "Private Internet Access" > /dev/null; then
+                log_message "SUCCESS: PIA GUI gracefully quit after ${attempt}x2 seconds"
                 return 0
             fi
-            log_message "Waiting for graceful quit... (attempt $attempt/8)"
+            log_message "Waiting for graceful GUI quit... (attempt $attempt/8)"
         done
         
-        log_message "WARNING: PIA processes still running after 16 seconds graceful quit timeout"
+        log_message "WARNING: PIA GUI still running after 15 seconds graceful quit timeout"
         return 1
     else
         log_message "WARNING: Failed to send quit command to PIA application"
@@ -75,34 +76,29 @@ disconnect_pia() {
     fi
 }
 
-# Function to force kill PIA processes if graceful disconnect fails
+# Function to force kill PIA GUI if graceful quit fails
 force_kill_pia() {
-    log_message "Attempting to force kill PIA processes..."
+    log_message "Attempting to force kill PIA GUI (daemon will remain for killswitch)..."
     
-    # Kill main PIA processes
-    local killed=0
-    for process in "Private Internet Access" "pia-daemon" "pia-wireguard-go"; do
-        if pgrep -f "$process" > /dev/null; then
-            log_message "Force killing process: $process"
-            pkill -9 -f "$process"
-            killed=1
-        fi
-    done
-    
-    if [ $killed -eq 1 ]; then
+    # Kill only the GUI process, leave daemon for killswitch
+    if pgrep -x "Private Internet Access" > /dev/null; then
+        log_message "Force killing PIA GUI"
+        pkill -9 -x "Private Internet Access"
         log_message "Force kill attempted. Waiting 2 seconds..."
         sleep 2
+    else
+        log_message "PIA GUI already not running"
     fi
 }
 
-# Function to verify PIA processes are terminated
-verify_processes_terminated() {
-    if ! pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
-        log_message "SUCCESS: All PIA processes terminated"
+# Function to verify PIA GUI is terminated
+verify_gui_terminated() {
+    if ! pgrep -x "Private Internet Access" > /dev/null; then
+        log_message "SUCCESS: PIA GUI terminated (daemon remains for killswitch)"
         return 0
     else
-        local running_processes=$(pgrep -fl "Private Internet Access|pia-daemon|pia-wireguard-go" | cut -d: -f2-)
-        log_message "WARNING: PIA processes still running: $running_processes"
+        local gui_pid=$(pgrep -x "Private Internet Access")
+        log_message "WARNING: PIA GUI still running (PID: $gui_pid)"
         return 1
     fi
 }
@@ -223,8 +219,22 @@ eject_external_drive() {
     fi
 }
 
+# Function to cleanup on exit
+cleanup_on_exit() {
+    log_message "Sleep handler interrupted or completed, removing lock file"
+    rm -f "$LOCK_FILE"
+}
+
+# Set up trap for cleanup
+trap cleanup_on_exit EXIT INT TERM
+
 # Main execution
 log_message "=== Enhanced PIA Sleep Handler Started ==="
+
+# Create lock file to prevent race conditions with wake script
+echo "$(date '+%Y-%m-%d %H:%M:%S')" > "$LOCK_FILE"
+log_message "Created lock file to coordinate with wake handler"
+
 log_message "Configuration: Torrents=$MANAGE_TORRENTS, Drive=$MANAGE_EXTERNAL_DRIVE"
 
 # Step 1: Close torrent applications first (they may be using the external drive)
@@ -246,46 +256,46 @@ fi
 connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
 log_message "Current PIA connection state: $connection_state"
 
-# If PIA processes are running, assume it should be reconnected after wake
-# (regardless of current connection state, since PIA may auto-disconnect before sleep)
-if pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
+# Check if PIA GUI app is running (daemon can stay for killswitch)
+# Only consider PIA "running" if the GUI is present
+if pgrep -x "Private Internet Access" > /dev/null; then
     echo "running" > "$STATE_FILE"
-    log_message "PIA was running - will reconnect after wake (connection state was: $connection_state)"
+    log_message "PIA GUI was running - will restart after wake (connection state was: $connection_state)"
 else
-    log_message "PIA was not running - no reconnect needed after wake"
+    log_message "PIA GUI was not running - no restart needed after wake"
     rm -f "$STATE_FILE"
 fi
 
-# Check if PIA processes are running (regardless of connection state)
-if ! pgrep -f "Private Internet Access|pia-daemon|pia-wireguard-go" > /dev/null; then
-    log_message "No PIA processes running. Nothing to terminate."
+# Check if PIA GUI app is running (regardless of connection state)
+if ! pgrep -x "Private Internet Access" > /dev/null; then
+    log_message "No PIA GUI running. Nothing to quit (daemon can stay for killswitch)."
     log_message "=== Enhanced Sleep Handler Completed ===\\n"
     exit 0
 fi
 
-log_message "PIA processes detected - proceeding with termination to prevent kernel panic"
+log_message "PIA GUI detected - proceeding with graceful quit (daemon will remain for killswitch)"
 
-# Attempt graceful disconnect (which may also terminate processes)
+# Attempt graceful disconnect and GUI quit
 if disconnect_pia; then
-    # Verify processes are actually terminated
-    if verify_processes_terminated; then
-        log_message "SUCCESS: PIA gracefully disconnected and processes terminated"
+    # Verify GUI is actually terminated
+    if verify_gui_terminated; then
+        log_message "SUCCESS: PIA GUI gracefully quit (daemon preserved for killswitch)"
         log_message "=== Enhanced Sleep Handler Completed Successfully ===\\n"
         exit 0
     else
-        log_message "Graceful disconnect succeeded but processes still running"
+        log_message "Graceful quit succeeded but GUI still running"
         force_kill_pia
     fi
 else
-    log_message "Graceful disconnect failed, attempting force kill"
+    log_message "Graceful quit failed, attempting force kill of GUI"
     force_kill_pia
 fi
 
 # Final verification after force kill
-if verify_processes_terminated; then
-    log_message "SUCCESS: PIA processes terminated after force kill"
+if verify_gui_terminated; then
+    log_message "SUCCESS: PIA GUI terminated after force kill (daemon preserved for killswitch)"
 else
-    log_message "CRITICAL: PIA processes may still be running - kernel panic risk remains"
+    log_message "WARNING: PIA GUI may still be running"
 fi
 
 log_message "=== Enhanced Sleep Handler Completed ===\\n"
