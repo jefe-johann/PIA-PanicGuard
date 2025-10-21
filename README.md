@@ -92,7 +92,7 @@ VERBOSE_LOGGING="true"           # Show detailed output during operations
 ```
 
 **To modify configuration:**
-1. Edit `/usr/local/etc/pia-sleep.conf`
+1. Edit `/usr/local/etc/pia-sleep.conf`. Can be done by opening the symlink in this directory.
 2. Changes take effect immediately (no service restart needed)
 
 ### Logging
@@ -143,11 +143,12 @@ VERBOSE_LOGGING="true"           # Show detailed output during operations
 - **`/tmp/drive-was-mounted`** - External drive mount state
 
 ### Project Directory Files (This Directory)
-- **`pia-sleep.conf`** - Source configuration file with all features enabled
+- **`pia-sleep.conf`** - Symlink to system configuration file at `/usr/local/etc/pia-sleep.conf`
 - **`pia-sleep.sh`** - Source version of enhanced sleep script
 - **`pia-wake.sh`** - Source version of enhanced wake script
 - **`com.pia.sleephandler.plist`** - Source LaunchDaemon configuration
-- **`install.sh`** - Installation script (handles new config file)
+- **`install.sh`** - Installation script (initial setup and script updates)
+- **`update.sh`** - Quick script update utility (copies scripts and restarts service)
 - **`uninstall.sh`** - Complete removal script (removes all components)
 - **`realtek-uninstall.sh`** - Separate Realtek cleanup script
 - **`status.sh`** - Enhanced status checker (shows torrent/drive status)

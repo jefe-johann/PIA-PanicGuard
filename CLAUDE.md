@@ -59,12 +59,14 @@ sudo launchctl list | grep pia      # Check LaunchDaemon status
 
 This project uses a "source + system installation" model:
 
-- **Project directory**: Contains source scripts, configuration, and installation tools
-- **System installation**: 
-  - Config: `/usr/local/etc/pia-sleep.conf` (centralized settings)
+- **Project directory**: Contains source scripts, configuration symlink, and installation tools
+- **System installation**:
+  - Config: `/usr/local/etc/pia-sleep.conf` (centralized settings, owned by user for easy editing)
   - Scripts: `/usr/local/bin/pia-sleep.sh` and `/usr/local/bin/pia-wake.sh`
   - LaunchDaemon: `/Library/LaunchDaemons/com.pia.sleephandler.plist`
   - State files: `/tmp/pia-was-connected`, `/tmp/torrents-were-running`, `/tmp/drive-was-mounted`
+
+**Config File Note**: The `pia-sleep.conf` file in the project directory is a **symlink** to `/usr/local/etc/pia-sleep.conf`. You can edit it directly in your editor (VSCode, etc.) and changes take effect immediately - no installation step needed.
 
 **IMPORTANT**: Changes to project scripts require service restart (unload/load LaunchDaemon). Configuration file changes take effect immediately.
 
@@ -91,7 +93,7 @@ The enhanced system integrates with multiple macOS subsystems. Key integration p
 
 When modifying this project as Claude Code:
 
-1. **Config Changes**: Edit `/usr/local/etc/pia-sleep.conf` - takes effect immediately
+1. **Config Changes**: Edit `pia-sleep.conf` in the project directory (it's a symlink to `/usr/local/etc/pia-sleep.conf`) - changes take effect immediately, no installation needed
 
 2. **Script Changes**: After editing `pia-sleep.sh` or `pia-wake.sh` in the project directory:
 
