@@ -123,9 +123,8 @@ A SwiftBar plugin provides convenient menubar access to the sleep management sys
    - The plugin should appear in your menubar
 
 ### Menubar Icons
-- 🟢 Service running, VPN connected
-- 🟡 Service running, VPN disconnected
-- 🔴 Service stopped
+- 􀋭 service running
+- 􀋯 service disabled
 
 For detailed documentation, see [swiftbar/README.md](swiftbar/README.md)
 

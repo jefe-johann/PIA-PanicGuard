@@ -54,6 +54,17 @@ if [ -f "$SCRIPT_DIR/pia-config-helper.sh" ]; then
     echo -e "  ${GREEN}✓${NC} pia-config-helper.sh updated"
 fi
 
+# Update SwiftBar plugin if it exists (optional)
+if [ -n "$SUDO_USER" ]; then
+    SWIFTBAR_PLUGINS="/Users/$SUDO_USER/Library/Application Support/SwiftBar/plugins"
+    if [ -d "$SWIFTBAR_PLUGINS" ] && [ -f "$SCRIPT_DIR/swiftbar/pia-sleep-manager.1m.sh" ]; then
+        cp "$SCRIPT_DIR/swiftbar/pia-sleep-manager.1m.sh" "$SWIFTBAR_PLUGINS/"
+        chmod +x "$SWIFTBAR_PLUGINS/pia-sleep-manager.1m.sh"
+        chown "$SUDO_USER" "$SWIFTBAR_PLUGINS/pia-sleep-manager.1m.sh"
+        echo -e "  ${GREEN}✓${NC} SwiftBar plugin updated"
+    fi
+fi
+
 # Step 2: Restart the service
 echo -e "\n${BLUE}Step 2: Restarting the service...${NC}"
 

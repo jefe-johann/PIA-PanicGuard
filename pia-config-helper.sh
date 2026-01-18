@@ -47,18 +47,28 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 
-# Backup config file
-cp "$CONFIG_FILE" "${CONFIG_FILE}.bak"
+# Backup config file to /tmp
+BACKUP_FILE="/tmp/pia-sleep.conf.bak"
+TEMP_FILE="/tmp/pia-sleep.conf.tmp"
+cp "$CONFIG_FILE" "$BACKUP_FILE"
 
-# Update the configuration file
-# Use sed to find and replace the setting
-if sed -i '' "s/^${SETTING_NAME}=.*/${SETTING_NAME}=\"${NEW_VALUE}\"/" "$CONFIG_FILE"; then
-    echo "Successfully updated ${SETTING_NAME} to ${NEW_VALUE}"
-    rm "${CONFIG_FILE}.bak"
-    exit 0
+# Update the configuration file using temp file
+# (can't use sed -i because /usr/local/etc is root-owned)
+if sed "s/^${SETTING_NAME}=.*/${SETTING_NAME}=\"${NEW_VALUE}\"/" "$CONFIG_FILE" > "$TEMP_FILE"; then
+    # Replace original with updated version
+    if mv "$TEMP_FILE" "$CONFIG_FILE"; then
+        echo "Successfully updated ${SETTING_NAME} to ${NEW_VALUE}"
+        rm "$BACKUP_FILE"
+        exit 0
+    else
+        echo "Error: Failed to move updated config file"
+        mv "$BACKUP_FILE" "$CONFIG_FILE"
+        rm -f "$TEMP_FILE"
+        exit 1
+    fi
 else
     echo "Error: Failed to update configuration file"
-    # Restore backup on failure
-    mv "${CONFIG_FILE}.bak" "$CONFIG_FILE"
+    mv "$BACKUP_FILE" "$CONFIG_FILE"
+    rm -f "$TEMP_FILE"
     exit 1
 fi

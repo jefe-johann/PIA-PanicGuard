@@ -143,6 +143,12 @@ The SwiftBar menubar plugin provides GUI control over the sleep management syste
 3. Refresh SwiftBar (Cmd+R in SwiftBar menu, or restart app)
 4. Check SwiftBar console for errors (SwiftBar → Preferences → Console)
 
+**IMPORTANT - For Claude Code:** After making ANY changes to `swiftbar/pia-sleep-manager.1m.sh`, ALWAYS remind the user to copy the updated plugin to SwiftBar:
+```bash
+cp swiftbar/pia-sleep-manager.1m.sh ~/Library/Application\ Support/SwiftBar/plugins/
+```
+Then refresh SwiftBar (Cmd+R) or restart it to see the changes.
+
 **Plugin Behavior:**
 - Updates every 1 minute automatically (1m refresh rate)
 - **No system restart needed** for plugin changes (unlike core sleep/wake scripts)

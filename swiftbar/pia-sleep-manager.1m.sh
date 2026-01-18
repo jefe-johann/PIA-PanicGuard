@@ -238,10 +238,10 @@ render_toggle() {
 }
 
 # Render each toggle
-render_toggle "MANAGE_TORRENTS" "Manage Torrents"
+render_toggle "MANAGE_TORRENTS" "Auto Close Torrents"
 render_toggle "MANAGE_EXTERNAL_DRIVE" "Manage External Drive"
 render_toggle "AUTO_RECONNECT" "Auto Reconnect VPN"
-render_toggle "AUTO_REOPEN_APPS" "Auto Reopen Apps"
+render_toggle "AUTO_REOPEN_APPS" "Auto Reopen Torrents"
 
 echo "---"
 
@@ -258,7 +258,7 @@ echo "---"
 
 # === ADVANCED SECTION ===
 echo "🔧 Advanced"
-echo "--Edit Configuration | bash='open' param1='$CONFIG_FILE' terminal=false"
+echo "--Edit Configuration | bash='open' param1='-t' param2='$CONFIG_FILE' terminal=false"
 echo "--Restart Service | bash='$0' param1=restart-service terminal=false refresh=true"
 echo "-----"
 echo "--Run Status Script | bash='/Users/jeff/Jeff/Random_Projects/Sleepy_Time/VPN_Shutdown/status.sh' terminal=true"

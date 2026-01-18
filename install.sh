@@ -87,17 +87,17 @@ check_conflicts() {
 # Install configuration file
 install_config() {
     log_and_echo "INFO" "Installing configuration file..."
-    
+
     # Create /usr/local/etc directory if it doesn't exist
     mkdir -p "/usr/local/etc"
-    
+
     # Copy configuration file
     cp "$SCRIPT_DIR/pia-sleep.conf" "/usr/local/etc/"
-    
+
     # Set permissions
     chmod 644 "/usr/local/etc/pia-sleep.conf"
     chown root:wheel "/usr/local/etc/pia-sleep.conf"
-    
+
     log_and_echo "SUCCESS" "Configuration file installed"
 }
 
