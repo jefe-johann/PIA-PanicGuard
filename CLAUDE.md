@@ -112,6 +112,52 @@ sudo ./update.sh
 3. **Testing**: Use `./status.sh` to verify all components, `sudo /usr/local/bin/pia-sleep.sh` to test manually
 4. **Verification**: Check `/var/log/pia-sleep.log` for detailed operation logs
 
+## SwiftBar Plugin Development
+
+**Location:** `swiftbar/pia-sleep-manager.1m.sh`
+
+The SwiftBar menubar plugin provides GUI control over the sleep management system. It's an optional component that works alongside the core bash scripts.
+
+**Key Points:**
+- Plugin runs as **user** (not root), unlike the core scripts
+- Uses `osascript "with administrator privileges"` for sudo operations (service control, config changes)
+- Refresh rate controlled by filename: `1m` = 1 minute, `30s` = 30 seconds, etc.
+- No compilation needed - pure bash script
+- Reads config from `/usr/local/etc/pia-sleep.conf` (same as core scripts)
+
+**Helper Script:** `/usr/local/bin/pia-config-helper.sh`
+- Validates and modifies configuration file settings
+- Installed via `install.sh`, updated via `update.sh`
+- Called by plugin via osascript for secure config editing
+
+**Testing Plugin Changes:**
+1. Edit plugin in project directory: `swiftbar/pia-sleep-manager.1m.sh`
+2. Copy to SwiftBar plugins directory:
+   ```bash
+   cp swiftbar/pia-sleep-manager.1m.sh ~/Library/Application\ Support/SwiftBar/plugins/
+   ```
+   Or use a symlink for live editing:
+   ```bash
+   ln -s "$(pwd)/swiftbar/pia-sleep-manager.1m.sh" ~/Library/Application\ Support/SwiftBar/plugins/
+   ```
+3. Refresh SwiftBar (Cmd+R in SwiftBar menu, or restart app)
+4. Check SwiftBar console for errors (SwiftBar → Preferences → Console)
+
+**Plugin Behavior:**
+- Updates every 1 minute automatically (1m refresh rate)
+- **No system restart needed** for plugin changes (unlike core sleep/wake scripts)
+- Status detection uses non-sudo commands where possible:
+  - `pgrep -f "sleepwatcher.*pia-sleep.sh"` - Check if service running
+  - `piactl get connectionstate` - Check VPN state
+  - `diskutil info "$EXTERNAL_DRIVE_NAME"` - Check drive status
+- Actions requiring sudo trigger macOS password prompt via osascript
+
+**Common Debugging:**
+- If plugin doesn't appear: Check executable permissions, verify file in correct directory
+- If status not updating: Check refresh rate (1m = 1 minute), manually refresh
+- If toggles don't work: Verify helper script installed at `/usr/local/bin/pia-config-helper.sh`
+- Check SwiftBar console for script errors
+
 ### When Script Updates Are Required
 
 **Script File Changes** (requires copy + restart):
