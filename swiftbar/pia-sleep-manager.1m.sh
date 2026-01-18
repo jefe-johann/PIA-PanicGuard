@@ -149,19 +149,13 @@ fi
 
 # === MENU RENDERING ===
 
-# Determine status icon for menubar
-get_status_icon() {
-    if $service_running && $vpn_connected; then
-        echo "🟢"
-    elif $service_running; then
-        echo "🟡"
-    else
-        echo "🔴"
-    fi
-}
-
 # Header (what appears in menubar)
-echo "$(get_status_icon) PIA"
+# Use SF Symbol: eye when service running, eye.slash when disabled
+if $service_running; then
+    echo "| sfimage=eye"
+else
+    echo "| sfimage=eye.slash"
+fi
 echo "---"
 
 # === STATUS SECTION ===
