@@ -95,6 +95,40 @@ VERBOSE_LOGGING="true"           # Show detailed output during operations
 1. Edit `/usr/local/etc/pia-sleep.conf`. Can be done by opening the symlink in this directory.
 2. Changes take effect immediately (no service restart needed)
 
+## SwiftBar Menubar Integration (Optional)
+
+A SwiftBar plugin provides convenient menubar access to the sleep management system with GUI controls.
+
+### Features
+- **Real-time Status Display** - At-a-glance view of service state, VPN connection, external drive, and torrent apps
+- **One-Click Service Control** - Enable/disable sleep management without terminal commands
+- **Feature Toggles** - Toggle MANAGE_TORRENTS, MANAGE_EXTERNAL_DRIVE, AUTO_RECONNECT, AUTO_REOPEN_APPS without editing config
+- **Log Viewing** - View recent activity logs in Terminal
+- **Quick Actions** - Reconnect VPN, refresh status, restart service
+
+### Installation
+
+1. **Install SwiftBar** (if not already installed):
+   ```bash
+   brew install swiftbar
+   ```
+
+2. **Copy the plugin to SwiftBar's plugins directory:**
+   ```bash
+   cp swiftbar/pia-sleep-manager.1m.sh ~/Library/Application\ Support/SwiftBar/plugins/
+   chmod +x ~/Library/Application\ Support/SwiftBar/plugins/pia-sleep-manager.1m.sh
+   ```
+
+3. **Refresh SwiftBar** or restart the app
+   - The plugin should appear in your menubar
+
+### Menubar Icons
+- 🟢 Service running, VPN connected
+- 🟡 Service running, VPN disconnected
+- 🔴 Service stopped
+
+For detailed documentation, see [swiftbar/README.md](swiftbar/README.md)
+
 ### Logging
 
 - **Activity logs**: `/var/log/pia-sleep.log` - All sleep/wake actions
