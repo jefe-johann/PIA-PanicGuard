@@ -46,6 +46,14 @@ else
     exit 1
 fi
 
+# Update helper script if it exists (optional component for SwiftBar)
+if [ -f "$SCRIPT_DIR/pia-config-helper.sh" ]; then
+    cp "$SCRIPT_DIR/pia-config-helper.sh" /usr/local/bin/
+    chmod 755 /usr/local/bin/pia-config-helper.sh
+    chown root:wheel /usr/local/bin/pia-config-helper.sh
+    echo -e "  ${GREEN}✓${NC} pia-config-helper.sh updated"
+fi
+
 # Step 2: Restart the service
 echo -e "\n${BLUE}Step 2: Restarting the service...${NC}"
 

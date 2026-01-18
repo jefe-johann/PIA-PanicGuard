@@ -120,17 +120,37 @@ install_scripts() {
     log_and_echo "SUCCESS" "Scripts installed successfully"
 }
 
+# Install helper script for SwiftBar integration
+install_helper_script() {
+    log_and_echo "INFO" "Installing configuration helper script..."
+
+    if [ -f "$SCRIPT_DIR/pia-config-helper.sh" ]; then
+        # Copy helper script to /usr/local/bin
+        cp "$SCRIPT_DIR/pia-config-helper.sh" "/usr/local/bin/"
+
+        # Set permissions
+        chmod 755 "/usr/local/bin/pia-config-helper.sh"
+
+        # Set ownership
+        chown root:wheel "/usr/local/bin/pia-config-helper.sh"
+
+        log_and_echo "SUCCESS" "Helper script installed"
+    else
+        log_and_echo "INFO" "Helper script not found (optional component)"
+    fi
+}
+
 # Install LaunchDaemon
 install_launchdaemon() {
     log_and_echo "INFO" "Installing LaunchDaemon..."
-    
+
     # Copy LaunchDaemon plist
     cp "$SCRIPT_DIR/com.pia.sleephandler.plist" "/Library/LaunchDaemons/"
-    
+
     # Set permissions
     chmod 644 "/Library/LaunchDaemons/com.pia.sleephandler.plist"
     chown root:wheel "/Library/LaunchDaemons/com.pia.sleephandler.plist"
-    
+
     log_and_echo "SUCCESS" "LaunchDaemon installed"
 }
 
@@ -175,12 +195,13 @@ verify_installation() {
 main() {
     log_and_echo "INFO" "Starting PIA VPN Sleep Handler installation..."
     log_and_echo "INFO" "Installation log: $LOG_FILE"
-    
+
     check_root
     check_prerequisites
     check_conflicts
     install_config
     install_scripts
+    install_helper_script
     install_launchdaemon
     start_service
     verify_installation
@@ -203,6 +224,17 @@ main() {
     log_and_echo "INFO" "  - Auto-reopen torrent apps after wake (disabled by default)"
     echo
     log_and_echo "INFO" "To configure features, edit: /usr/local/etc/pia-sleep.conf"
+    echo
+
+    # Check for SwiftBar and provide menubar installation hint
+    if [ -d "/Applications/SwiftBar.app" ] || [ -d "$HOME/Applications/SwiftBar.app" ] || [ -d "$(eval echo ~$SUDO_USER)/Applications/SwiftBar.app" ]; then
+        log_and_echo "INFO" "SwiftBar detected! Install optional menubar plugin:"
+        log_and_echo "INFO" "  cp $SCRIPT_DIR/swiftbar/pia-sleep-manager.1m.sh ~/Library/Application\\ Support/SwiftBar/plugins/"
+        log_and_echo "INFO" "  chmod +x ~/Library/Application\\ Support/SwiftBar/plugins/pia-sleep-manager.1m.sh"
+    elif [ -d "$SCRIPT_DIR/swiftbar" ]; then
+        log_and_echo "INFO" "Optional menubar plugin available in: $SCRIPT_DIR/swiftbar/"
+        log_and_echo "INFO" "Install SwiftBar (brew install swiftbar) for GUI control"
+    fi
 }
 
 # Run main function
