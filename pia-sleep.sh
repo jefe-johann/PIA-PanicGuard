@@ -256,11 +256,16 @@ fi
 connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
 log_message "Current PIA connection state: $connection_state"
 
-# Check if PIA GUI app is running (daemon can stay for killswitch)
-# Only consider PIA "running" if the GUI is present
+# Check if PIA GUI app is running and if it was connected
+# Only save state if both GUI was running AND VPN was connected
 if pgrep -x "Private Internet Access" > /dev/null; then
-    echo "running" > "$STATE_FILE"
-    log_message "PIA GUI was running - will restart after wake (connection state was: $connection_state)"
+    if [ "$connection_state" = "Connected" ]; then
+        echo "connected" > "$STATE_FILE"
+        log_message "PIA GUI was running AND connected - will restart and reconnect after wake"
+    else
+        log_message "PIA GUI was running but NOT connected - will not reconnect after wake (state was: $connection_state)"
+        rm -f "$STATE_FILE"
+    fi
 else
     log_message "PIA GUI was not running - no restart needed after wake"
     rm -f "$STATE_FILE"
