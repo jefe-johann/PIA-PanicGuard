@@ -5,6 +5,7 @@
 
 LOG_FILE="/var/log/pia-sleep.log"
 STATE_FILE="/tmp/pia-was-connected"
+PIA_RUNNING_STATE_FILE="/tmp/pia-was-running"
 TORRENT_STATE_FILE="/tmp/torrents-were-running"
 DRIVE_STATE_FILE="/tmp/drive-was-mounted"
 LOCK_FILE="/tmp/pia-sleep-in-progress"
@@ -185,90 +186,96 @@ if [ ! -x "$PIA_CTL" ]; then
     exit 1
 fi
 
-# Check if PIA was running before sleep
-if [ ! -f "$STATE_FILE" ]; then
-    log_message "PIA was not running before sleep. No VPN reconnection needed."
-    # Step 3: Don't reopen torrents since PIA wasn't running (pia_connected remains false)
+# Check if PIA GUI was running before sleep (new check)
+if [ ! -f "$PIA_RUNNING_STATE_FILE" ]; then
+    log_message "PIA GUI was not running before sleep. Will not start PIA."
+    # Don't reopen torrents since PIA wasn't running (pia_connected remains false)
     reopen_torrent_apps "$pia_connected"
     log_message "=== Enhanced Wake Handler Completed ===\\n"
     exit 0
 fi
 
-log_message "PIA was running before sleep - will restart and reconnect"
+log_message "PIA GUI was running before sleep - will reopen"
 
-# Clean up state file
-rm -f "$STATE_FILE"
+# Clean up the running state file
+rm -f "$PIA_RUNNING_STATE_FILE"
 
-# Check if auto-reconnect is enabled
-if [ "$AUTO_RECONNECT" = "true" ]; then
-    log_message "Auto-reconnect enabled. Performing clean PIA restart..."
-    
-    # Wait a moment for system to fully wake up
-    sleep 3
-    
-    # Step 1: Check if PIA GUI is already running and functional
-    gui_needs_start=true
-    if pgrep -x "Private Internet Access" > /dev/null; then
-        log_message "PIA GUI already running, checking if it's functional..."
-        
-        # Check if the running GUI is responsive
-        if "$PIA_CTL" get connectionstate >/dev/null 2>&1; then
-            log_message "PIA GUI is functional, proceeding to connection check"
-            gui_needs_start=false
-        else
-            log_message "PIA GUI appears unresponsive, cleaning up..."
-            pkill -9 -x "Private Internet Access" 2>/dev/null || true
-            sleep 3
-        fi
+# Wait a moment for system to fully wake up
+sleep 3
+
+# Step 1: Reopen PIA GUI (always, since it was running before sleep)
+gui_needs_start=true
+gui_functional=false
+
+if pgrep -x "Private Internet Access" > /dev/null; then
+    log_message "PIA GUI already running, checking if it's functional..."
+
+    # Check if the running GUI is responsive
+    if "$PIA_CTL" get connectionstate >/dev/null 2>&1; then
+        log_message "PIA GUI is functional"
+        gui_needs_start=false
+        gui_functional=true
+    else
+        log_message "PIA GUI appears unresponsive, cleaning up..."
+        pkill -9 -x "Private Internet Access" 2>/dev/null || true
+        sleep 3
     fi
-    
-    # Step 2: Start PIA application if needed
-    if [ "$gui_needs_start" = "true" ]; then
-        log_message "Starting PIA GUI application..."
-        if open -g -a "Private Internet Access" 2>/dev/null; then
-            log_message "PIA application started in background, waiting for daemon initialization..."
-            
-            # Wait for daemon to fully initialize (up to 15 seconds)
-            daemon_ready=false
-            for attempt in $(seq 1 6); do
-                sleep 2.5
-                if "$PIA_CTL" get connectionstate >/dev/null 2>&1; then
-                    log_message "PIA daemon ready after ${attempt}x2.5 seconds"
-                    daemon_ready=true
-                    break
-                fi
-                log_message "Waiting for PIA daemon... (attempt $attempt/6)"
-            done
-            
-            if [ "$daemon_ready" != "true" ]; then
-                log_message "ERROR: PIA daemon failed to initialize within 15 seconds"
-                pia_connected=false
-                # Skip connection attempt
+fi
+
+# Start PIA application if needed
+if [ "$gui_needs_start" = "true" ]; then
+    log_message "Starting PIA GUI application..."
+    if open -g -a "Private Internet Access" 2>/dev/null; then
+        log_message "PIA application started in background, waiting for daemon initialization..."
+
+        # Wait for daemon to fully initialize (up to 15 seconds)
+        daemon_ready=false
+        for attempt in $(seq 1 6); do
+            sleep 2.5
+            if "$PIA_CTL" get connectionstate >/dev/null 2>&1; then
+                log_message "PIA daemon ready after ${attempt}x2.5 seconds"
+                daemon_ready=true
+                gui_functional=true
+                break
             fi
-        else
-            log_message "ERROR: Failed to start PIA application"
-            pia_connected=false
-            # Skip connection attempt
+            log_message "Waiting for PIA daemon... (attempt $attempt/6)"
+        done
+
+        if [ "$daemon_ready" != "true" ]; then
+            log_message "ERROR: PIA daemon failed to initialize within 15 seconds"
+            gui_functional=false
         fi
+    else
+        log_message "ERROR: Failed to start PIA application"
+        gui_functional=false
     fi
-    
-    # Step 3: Attempt connection (whether GUI was already running or just started)
-    if [ "$gui_needs_start" = "false" ] || [ "$daemon_ready" = "true" ]; then
-            log_message "Attempting PIA connection..."
+fi
+
+# Step 2: Check if VPN should be reconnected (only if GUI is functional and VPN was connected)
+if [ "$gui_functional" = "true" ]; then
+    # Check if PIA VPN was connected before sleep
+    if [ -f "$STATE_FILE" ]; then
+        log_message "PIA VPN was connected before sleep"
+        rm -f "$STATE_FILE"
+
+        # Check if auto-reconnect is enabled
+        if [ "$AUTO_RECONNECT" = "true" ]; then
+            log_message "Auto-reconnect enabled. Attempting VPN connection..."
+
             if "$PIA_CTL" connect 2>&1 | while IFS= read -r line; do
                 log_message "piactl: $line"
             done; then
                 log_message "PIA connection command sent successfully"
-                
+
                 # Wait for connection to complete (up to 30 seconds)
                 connection_successful=false
                 for connect_attempt in $(seq 1 12); do
                     sleep 2.5
                     connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
                     log_message "PIA connection state: $connection_state (attempt $connect_attempt/12)"
-                    
+
                     if [ "$connection_state" = "Connected" ]; then
-                        log_message "SUCCESS: PIA clean restart and connection successful"
+                        log_message "SUCCESS: PIA VPN reconnection successful"
                         connection_successful=true
                         break
                     elif [ "$connection_state" = "Connecting" ]; then
@@ -279,7 +286,7 @@ if [ "$AUTO_RECONNECT" = "true" ]; then
                         break
                     fi
                 done
-                
+
                 if [ "$connection_successful" = "true" ]; then
                     pia_connected=true
                 else
@@ -290,13 +297,19 @@ if [ "$AUTO_RECONNECT" = "true" ]; then
                 log_message "ERROR: Failed to send PIA connection command"
                 pia_connected=false
             fi
+        else
+            log_message "Auto-reconnect disabled. PIA GUI reopened but VPN remains disconnected."
+            log_message "To enable auto-reconnect, set AUTO_RECONNECT=\"true\" in the config file"
+            pia_connected=false
+        fi
     else
-        log_message "PIA GUI not functional or could not be started, skipping connection"
+        log_message "PIA VPN was NOT connected before sleep - GUI reopened but staying disconnected"
+        rm -f "$STATE_FILE"  # Clean up in case it exists
         pia_connected=false
     fi
 else
-    log_message "Auto-reconnect disabled. PIA remains disconnected."
-    log_message "To enable auto-reconnect, set AUTO_RECONNECT=\"true\" in the config file"
+    log_message "PIA GUI could not be started or is not functional, skipping VPN reconnection"
+    rm -f "$STATE_FILE"  # Clean up state file
     pia_connected=false
 fi
 

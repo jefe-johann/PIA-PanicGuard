@@ -5,6 +5,7 @@
 
 LOG_FILE="/var/log/pia-sleep.log"
 STATE_FILE="/tmp/pia-was-connected"
+PIA_RUNNING_STATE_FILE="/tmp/pia-was-running"
 TORRENT_STATE_FILE="/tmp/torrents-were-running"
 DRIVE_STATE_FILE="/tmp/drive-was-mounted"
 LOCK_FILE="/tmp/pia-sleep-in-progress"
@@ -255,18 +256,24 @@ fi
 connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
 log_message "Current PIA connection state: $connection_state"
 
-# Check if PIA GUI app is running and if it was connected
-# Only save state if both GUI was running AND VPN was connected
+# Check if PIA GUI app is running (track this separately from connection state)
 if pgrep -x "Private Internet Access" > /dev/null; then
+    # PIA GUI was running - mark it so we reopen it on wake
+    echo "running" > "$PIA_RUNNING_STATE_FILE"
+    log_message "PIA GUI was running - will reopen after wake"
+
+    # Now check if it was also connected
     if [ "$connection_state" = "Connected" ]; then
         echo "connected" > "$STATE_FILE"
-        log_message "PIA GUI was running AND connected - will restart and reconnect after wake"
+        log_message "PIA VPN was connected - will reconnect after wake"
     else
-        log_message "PIA GUI was running but NOT connected - will not reconnect after wake (state was: $connection_state)"
+        log_message "PIA VPN was NOT connected (state: $connection_state) - will reopen GUI but not connect"
         rm -f "$STATE_FILE"
     fi
 else
-    log_message "PIA GUI was not running - no restart needed after wake"
+    # PIA GUI was not running - don't reopen it on wake
+    log_message "PIA GUI was not running - will not start after wake"
+    rm -f "$PIA_RUNNING_STATE_FILE"
     rm -f "$STATE_FILE"
 fi
 
