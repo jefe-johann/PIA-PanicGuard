@@ -27,7 +27,7 @@ fi
 
 # Function to log messages with timestamps
 log_message() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [WAKE] $1" >> "$LOG_FILE"
+    echo "$(date '+%b %d %Y %I:%M%p') [WAKE] $1" >> "$LOG_FILE"
     if [ "$VERBOSE_LOGGING" = "true" ]; then
         echo "[WAKE] $1"
     fi
@@ -147,8 +147,8 @@ log_message "=== Enhanced PIA Wake Handler Started ==="
 # Check if sleep handler is still running (race condition protection)
 if [ -f "$LOCK_FILE" ]; then
     sleep_start_time=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
-    current_time=$(date '+%Y-%m-%d %H:%M:%S')
-    
+    current_time=$(date '+%b %d %Y %I:%M%p')
+
     log_message "Found sleep handler lock file (started: $sleep_start_time)"
     log_message "Sleep handler may still be running, waiting briefly..."
     

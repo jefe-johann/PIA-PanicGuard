@@ -14,6 +14,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Status tracking
+SWIFTBAR_COPIED=false
+
 echo -e "${BLUE}=== PIA VPN Sleep Handler Update ===${NC}"
 echo
 
@@ -62,6 +65,7 @@ if [ -n "$SUDO_USER" ]; then
         chmod +x "$SWIFTBAR_PLUGINS/pia-sleep-manager.1m.sh"
         chown "$SUDO_USER" "$SWIFTBAR_PLUGINS/pia-sleep-manager.1m.sh"
         echo -e "  ${GREEN}✓${NC} SwiftBar plugin updated"
+        SWIFTBAR_COPIED=true
     fi
 fi
 
@@ -86,6 +90,16 @@ if pgrep -f "sleepwatcher.*pia-sleep.sh" >/dev/null; then
     echo -e "  ${GREEN}✓${NC} Sleepwatcher is running with updated PIA scripts"
 else
     echo -e "  ${YELLOW}⚠${NC} Sleepwatcher process not detected (check logs if needed)"
+fi
+
+# Verify SwiftBar plugin copy
+if [ "$SWIFTBAR_COPIED" = true ]; then
+    SWIFTBAR_PLUGINS="/Users/$SUDO_USER/Library/Application Support/SwiftBar/plugins"
+    if [ -f "$SWIFTBAR_PLUGINS/pia-sleep-manager.1m.sh" ]; then
+        echo -e "  ${GREEN}✓${NC} SwiftBar plugin verified at destination"
+    else
+        echo -e "  ${RED}✗${NC} SwiftBar plugin copy verification failed"
+    fi
 fi
 
 # Show status

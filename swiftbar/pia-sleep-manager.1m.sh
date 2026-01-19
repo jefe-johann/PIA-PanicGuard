@@ -78,8 +78,18 @@ if [ -n "$1" ]; then
             exit 0
             ;;
 
+        open-full-log)
+            # Open full log file in reverse order (newest first)
+            if [ -f "$LOG_FILE" ]; then
+                temp_log="/tmp/pia-sleep-reversed.log"
+                tail -r "$LOG_FILE" > "$temp_log" 2>/dev/null
+                open "$temp_log"
+            fi
+            exit 0
+            ;;
+
         show-logs)
-            # Show recent logs in terminal
+            # Show recent logs in terminal (newest at bottom due to auto-scroll)
             line_count="${2:-10}"
             echo "=== PIA Sleep Manager - Last $line_count Log Entries ==="
             echo ""
@@ -88,9 +98,6 @@ if [ -n "$1" ]; then
             else
                 echo "Log file not found: $LOG_FILE"
             fi
-            echo ""
-            echo "Press any key to close..."
-            read -n 1
             exit 0
             ;;
 
@@ -251,7 +258,7 @@ echo "--Last 10 Lines | bash='$0' param1=show-logs param2=10 terminal=true"
 echo "--Last 20 Lines | bash='$0' param1=show-logs param2=20 terminal=true"
 echo "--Last 50 Lines | bash='$0' param1=show-logs param2=50 terminal=true"
 if [ -f "$LOG_FILE" ]; then
-    echo "--Open Full Log | bash='open' param1='$LOG_FILE' terminal=false"
+    echo "--Open Full Log | bash='$0' param1=open-full-log terminal=false"
 fi
 
 echo "---"

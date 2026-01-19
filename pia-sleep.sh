@@ -29,7 +29,7 @@ fi
 
 # Function to log messages with timestamps
 log_message() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [SLEEP] $1" >> "$LOG_FILE"
+    echo "$(date '+%b %d %Y %I:%M%p') [SLEEP] $1" >> "$LOG_FILE"
     if [ "$VERBOSE_LOGGING" = "true" ]; then
         echo "[SLEEP] $1"
     fi
@@ -94,7 +94,6 @@ force_kill_pia() {
 # Function to verify PIA GUI is terminated
 verify_gui_terminated() {
     if ! pgrep -x "Private Internet Access" > /dev/null; then
-        log_message "SUCCESS: PIA GUI terminated (daemon remains for killswitch)"
         return 0
     else
         local gui_pid=$(pgrep -x "Private Internet Access")
@@ -232,7 +231,7 @@ trap cleanup_on_exit EXIT INT TERM
 log_message "=== Enhanced PIA Sleep Handler Started ==="
 
 # Create lock file to prevent race conditions with wake script
-echo "$(date '+%Y-%m-%d %H:%M:%S')" > "$LOCK_FILE"
+echo "$(date '+%b %d %Y %I:%M%p')" > "$LOCK_FILE"
 log_message "Created lock file to coordinate with wake handler"
 
 log_message "Configuration: Torrents=$MANAGE_TORRENTS, Drive=$MANAGE_EXTERNAL_DRIVE"
@@ -284,7 +283,6 @@ log_message "PIA GUI detected - proceeding with graceful quit (daemon will remai
 if disconnect_pia; then
     # Verify GUI is actually terminated
     if verify_gui_terminated; then
-        log_message "SUCCESS: PIA GUI gracefully quit (daemon preserved for killswitch)"
         log_message "=== Enhanced Sleep Handler Completed Successfully ===\\n"
         exit 0
     else
@@ -297,9 +295,7 @@ else
 fi
 
 # Final verification after force kill
-if verify_gui_terminated; then
-    log_message "SUCCESS: PIA GUI terminated after force kill (daemon preserved for killswitch)"
-else
+if ! verify_gui_terminated; then
     log_message "WARNING: PIA GUI may still be running"
 fi
 
