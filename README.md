@@ -45,12 +45,7 @@ This project was initially developed for a specific macOS + PIA VPN + external d
 
 ## Installation
 
-1. **If you have an old Realtek sleepwatcher setup, remove it first**:
-   ```bash
-   sudo ./realtek-uninstall.sh
-   ```
-
-2. **Run the PIA installation script**:
+1. **Run the PIA installation script**:
    ```bash
    sudo ./install.sh
    ```
@@ -61,7 +56,7 @@ This project was initially developed for a specific macOS + PIA VPN + external d
    - Install and load the LaunchDaemon
    - Start the sleepwatcher service
 
-3. **Verify installation**:
+2. **Verify installation**:
    ```bash
    # Check if sleepwatcher is running
    pgrep -f sleepwatcher
