@@ -13,20 +13,8 @@ CONFIG_FILE="/usr/local/etc/pia-sleep.conf"
 TIMEOUT=10
 PIA_CTL="/usr/local/bin/piactl"
 
-# Default configuration values
-MANAGE_TORRENTS="true"
-MANAGE_EXTERNAL_DRIVE="true"
-EXTERNAL_DRIVE_NAME="Big Dawg"
-TORRENT_APPS=("Transmission" "qbittorrent" "Nicotine+" "VLC" "BiglyBT")
-APP_SHUTDOWN_TIMEOUT=10
-DRIVE_EJECTION_ATTEMPTS=3
-DRIVE_EJECTION_WAIT=5
-VERBOSE_LOGGING="true"
-
-# Load configuration file if it exists
-if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
-fi
+# Load shared defaults (includes config file sourcing)
+source /usr/local/lib/pia-defaults.sh
 
 # Function to log messages with timestamps
 log_message() {
@@ -298,7 +286,7 @@ fi
 # Check if PIA GUI app is running (regardless of connection state)
 if ! pgrep -x "Private Internet Access" > /dev/null; then
     log_message "No PIA GUI running. Nothing to quit (daemon can stay for killswitch)."
-    log_message "=== Enhanced Sleep Handler Completed ===\\n"
+    log_message "=== Enhanced Sleep Handler Completed ==="
     exit 0
 fi
 
@@ -308,7 +296,7 @@ log_message "PIA GUI detected - proceeding with graceful quit (daemon will remai
 if disconnect_pia; then
     # Verify GUI is actually terminated
     if verify_gui_terminated; then
-        log_message "=== Enhanced Sleep Handler Completed Successfully ===\\n"
+        log_message "=== Enhanced Sleep Handler Completed Successfully ==="
         exit 0
     else
         log_message "Graceful quit succeeded but GUI still running"
@@ -324,5 +312,5 @@ if ! verify_gui_terminated; then
     log_message "WARNING: PIA GUI may still be running"
 fi
 
-log_message "=== Enhanced Sleep Handler Completed ===\\n"
+log_message "=== Enhanced Sleep Handler Completed ==="
 exit 0

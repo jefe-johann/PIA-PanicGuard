@@ -47,6 +47,9 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 
+# Clean up any stale backup files from previous runs
+rm -f /tmp/pia-sleep.conf.bak /tmp/pia-sleep.conf.tmp
+
 # Backup config file to /tmp
 BACKUP_FILE="/tmp/pia-sleep.conf.bak"
 TEMP_FILE="/tmp/pia-sleep.conf.tmp"

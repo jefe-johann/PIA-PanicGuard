@@ -89,6 +89,18 @@ remove_scripts() {
     done
 }
 
+# Remove shared defaults library
+remove_defaults_library() {
+    log_and_echo "INFO" "Removing shared defaults library..."
+
+    if [ -f "/usr/local/lib/pia-defaults.sh" ]; then
+        rm -f "/usr/local/lib/pia-defaults.sh"
+        log_and_echo "SUCCESS" "Defaults library removed"
+    else
+        log_and_echo "INFO" "Defaults library not found"
+    fi
+}
+
 # Clean up temporary files and logs
 cleanup_files() {
     log_and_echo "INFO" "Cleaning up temporary files..."
@@ -146,6 +158,7 @@ main() {
     remove_launchdaemon
     remove_config
     remove_scripts
+    remove_defaults_library
     cleanup_files
     verify_uninstall
     

@@ -140,6 +140,25 @@ install_helper_script() {
     fi
 }
 
+# Install shared defaults library
+install_defaults_library() {
+    log_and_echo "INFO" "Installing shared defaults library..."
+
+    # Create /usr/local/lib if it doesn't exist
+    mkdir -p "/usr/local/lib"
+
+    # Copy defaults library to /usr/local/lib
+    cp "$SCRIPT_DIR/pia-defaults.sh" "/usr/local/lib/"
+
+    # Set permissions (readable by all, writable by root)
+    chmod 644 "/usr/local/lib/pia-defaults.sh"
+
+    # Set ownership
+    chown root:wheel "/usr/local/lib/pia-defaults.sh"
+
+    log_and_echo "SUCCESS" "Defaults library installed"
+}
+
 # Install LaunchDaemon
 install_launchdaemon() {
     log_and_echo "INFO" "Installing LaunchDaemon..."
@@ -202,6 +221,7 @@ main() {
     install_config
     install_scripts
     install_helper_script
+    install_defaults_library
     install_launchdaemon
     start_service
     verify_installation

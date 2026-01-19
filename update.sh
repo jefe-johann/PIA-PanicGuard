@@ -57,6 +57,18 @@ if [ -f "$SCRIPT_DIR/pia-config-helper.sh" ]; then
     echo -e "  ${GREEN}✓${NC} pia-config-helper.sh updated"
 fi
 
+# Update shared defaults library
+if [ -f "$SCRIPT_DIR/pia-defaults.sh" ]; then
+    mkdir -p /usr/local/lib
+    cp "$SCRIPT_DIR/pia-defaults.sh" /usr/local/lib/
+    chmod 644 /usr/local/lib/pia-defaults.sh
+    chown root:wheel /usr/local/lib/pia-defaults.sh
+    echo -e "  ${GREEN}✓${NC} pia-defaults.sh updated"
+else
+    echo -e "  ${RED}✗${NC} pia-defaults.sh not found in project directory"
+    exit 1
+fi
+
 # Update SwiftBar plugin if it exists (optional)
 if [ -n "$SUDO_USER" ]; then
     SWIFTBAR_PLUGINS="/Users/$SUDO_USER/Library/Application Support/SwiftBar/plugins"

@@ -6,17 +6,8 @@
 # Configuration
 CONFIG_FILE="/usr/local/etc/pia-sleep.conf"
 
-# Default values
-MANAGE_TORRENTS="true"
-MANAGE_EXTERNAL_DRIVE="true"
-EXTERNAL_DRIVE_NAME="Big Dawg"
-TORRENT_APPS=("Transmission" "qbittorrent" "Nicotine+" "VLC" "BiglyBT")
-AUTO_REOPEN_APPS="false"
-
-# Load configuration if it exists
-if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
-fi
+# Load shared defaults (includes config file sourcing)
+source /usr/local/lib/pia-defaults.sh
 
 # Colors for output
 RED='\033[0;31m'
@@ -42,8 +33,8 @@ fi
 
 # Check LaunchDaemon status
 echo -e "\n${BLUE}LaunchDaemon Status:${NC}"
-if sudo launchctl list | grep -q "com.pia.sleephandler"; then
-    daemon_status=$(sudo launchctl list | grep "com.pia.sleephandler")
+if launchctl list | grep -q "com.pia.sleephandler"; then
+    daemon_status=$(launchctl list | grep "com.pia.sleephandler")
     echo -e "  ${GREEN}✓ Loaded:${NC} $daemon_status"
 else
     echo -e "  ${RED}✗ Not loaded${NC}"
@@ -155,7 +146,7 @@ fi
 
 # Overall status
 echo -e "\n${BLUE}Overall Status:${NC}"
-if sudo launchctl list | grep -q "com.pia.sleephandler" && [ -n "$(pgrep -f sleepwatcher)" ] && [ "$all_files_present" = true ]; then
+if launchctl list | grep -q "com.pia.sleephandler" && [ -n "$(pgrep -f sleepwatcher)" ] && [ "$all_files_present" = true ]; then
     echo -e "  ${GREEN}✓ Enhanced service is running and configured correctly${NC}"
     echo -e "  ${GREEN}→ Features: Torrents=$MANAGE_TORRENTS, Drive=$MANAGE_EXTERNAL_DRIVE${NC}"
 else

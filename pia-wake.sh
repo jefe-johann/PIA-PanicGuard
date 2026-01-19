@@ -12,19 +12,8 @@ LOCK_FILE="/tmp/pia-sleep-in-progress"
 CONFIG_FILE="/usr/local/etc/pia-sleep.conf"
 PIA_CTL="/usr/local/bin/piactl"
 
-# Default configuration values
-AUTO_RECONNECT="true"
-MANAGE_TORRENTS="true"
-MANAGE_EXTERNAL_DRIVE="true"
-AUTO_REOPEN_APPS="false"
-EXTERNAL_DRIVE_NAME="Big Dawg"
-TORRENT_APPS=("Transmission" "qbittorrent" "Nicotine+" "VLC" "BiglyBT")
-VERBOSE_LOGGING="true"
-
-# Load configuration file if it exists
-if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
-fi
+# Load shared defaults (includes config file sourcing)
+source /usr/local/lib/pia-defaults.sh
 
 # Function to log messages with timestamps
 log_message() {
@@ -191,7 +180,7 @@ if [ ! -f "$PIA_RUNNING_STATE_FILE" ]; then
     log_message "PIA GUI was not running before sleep. Will not start PIA."
     # Don't reopen torrents since PIA wasn't running (pia_connected remains false)
     reopen_torrent_apps "$pia_connected"
-    log_message "=== Enhanced Wake Handler Completed ===\\n"
+    log_message "=== Enhanced Wake Handler Completed ==="
     exit 0
 fi
 
@@ -353,5 +342,5 @@ fi
 # Step 3: Optionally reopen torrent applications (only if VPN is safe)
 reopen_torrent_apps "$pia_connected"
 
-log_message "=== Enhanced Wake Handler Completed ===\\n"
+log_message "=== Enhanced Wake Handler Completed ==="
 exit 0

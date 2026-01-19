@@ -14,18 +14,8 @@ LOG_FILE="/var/log/pia-sleep.log"
 PIA_CTL="/usr/local/bin/piactl"
 HELPER_SCRIPT="/usr/local/bin/pia-config-helper.sh"
 
-# Default values (used if config not found)
-MANAGE_TORRENTS="true"
-MANAGE_EXTERNAL_DRIVE="false"
-AUTO_RECONNECT="true"
-AUTO_REOPEN_APPS="true"
-EXTERNAL_DRIVE_NAME="Big Dawg"
-TORRENT_APPS=("Transmission" "qbittorrent" "Nicotine+" "VLC" "BiglyBT")
-
-# Load configuration if it exists
-if [ -r "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
-fi
+# Load shared defaults (includes config file sourcing)
+source /usr/local/lib/pia-defaults.sh
 
 # === ACTION HANDLERS ===
 # Execute when plugin called with parameters
@@ -267,5 +257,3 @@ echo "---"
 echo "🔧 Advanced"
 echo "--Edit Configuration | bash='open' param1='-t' param2='$CONFIG_FILE' terminal=false"
 echo "--Restart Service | bash='$0' param1=restart-service terminal=false refresh=true"
-echo "-----"
-echo "--Run Status Script | bash='/Users/jeff/Jeff/Random_Projects/Sleepy_Time/VPN_Shutdown/status.sh' terminal=true"
