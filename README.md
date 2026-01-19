@@ -1,4 +1,6 @@
-# Enhanced PIA VPN Sleep Handler
+# PIA-PanicGuard
+
+**Prevent macOS Kernel Panics with Smart Sleep Management**
 
 Automatically manages torrent clients, external drives, and Private Internet Access VPN before/after macOS sleep to prevent kernel panics and data loss.
 
@@ -18,6 +20,7 @@ This solution uses `sleepwatcher` (via Homebrew) to monitor system sleep events 
 - **Multiple Client Support**: Handles Transmission, qBittorrent, Nicotine+, VLC, BiglyBT
 - **Optional Auto-Reopen**: Can reopen torrent clients after wake (disabled by default)
 - **State Persistence**: Remembers which apps were running before sleep
+- **Use Cases**: Ideal for torrenting Linux ISOs, large open-source datasets, and decentralized networking
 
 ### External Drive Management
 - **Safe Drive Ejection**: Ejects external drive "Big Dawg" before sleep
@@ -29,6 +32,10 @@ This solution uses `sleepwatcher` (via Homebrew) to monitor system sleep events 
 - **Comprehensive Logging**: All actions logged to `/var/log/pia-sleep.log`
 - **Automatic Startup**: Runs automatically at boot via LaunchDaemon
 - **Enhanced Status Checking**: Shows status of all managed components
+
+## Community Use
+
+This project was initially developed for a specific macOS + PIA VPN + external drive workflow, but the modular configuration system makes it easy to adapt to your needs. All features can be independently enabled/disabled via the configuration file. Contributions and feedback are welcome!
 
 ## Prerequisites
 
@@ -307,4 +314,10 @@ If you're upgrading from the basic VPN-only version:
 
 ## License
 
-This project is provided as-is for personal use. Private Internet Access, sleepwatcher, and all managed applications are products of their respective owners.
+PIA-PanicGuard is dual-licensed:
+- **GNU GPL v3.0** for open source use (see [LICENSE](LICENSE))
+- **Commercial license** available for proprietary applications (see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md))
+
+For commercial licensing inquiries, contact jeffschumann.dev@gmail.com
+
+Private Internet Access, sleepwatcher, and all managed applications are products of their respective owners.
