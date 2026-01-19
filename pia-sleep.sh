@@ -252,9 +252,27 @@ if [ ! -x "$PIA_CTL" ]; then
     exit 1
 fi
 
-# Check current connection state
-connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
-log_message "Current PIA connection state: $connection_state"
+# Check current connection state with multiple samples for reliability
+# Wait briefly to allow any transitional states to settle
+sleep 2
+
+# Take 3 readings to ensure accuracy
+connection_state_1=$("$PIA_CTL" get connectionstate 2>/dev/null)
+sleep 1
+connection_state_2=$("$PIA_CTL" get connectionstate 2>/dev/null)
+sleep 1
+connection_state_3=$("$PIA_CTL" get connectionstate 2>/dev/null)
+
+# Use the most common reading (or last if all different)
+if [ "$connection_state_1" = "$connection_state_2" ]; then
+    connection_state="$connection_state_1"
+elif [ "$connection_state_2" = "$connection_state_3" ]; then
+    connection_state="$connection_state_2"
+else
+    connection_state="$connection_state_3"
+fi
+
+log_message "PIA connection state readings: [$connection_state_1, $connection_state_2, $connection_state_3] -> using: $connection_state"
 
 # Check if PIA GUI app is running (track this separately from connection state)
 if pgrep -x "Private Internet Access" > /dev/null; then

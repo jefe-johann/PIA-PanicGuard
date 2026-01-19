@@ -253,6 +253,43 @@ fi
 
 # Step 2: Check if VPN should be reconnected (only if GUI is functional and VPN was connected)
 if [ "$gui_functional" = "true" ]; then
+    # First, check if PIA auto-connected on launch (e.g., "Connect on Launch" setting enabled)
+    sleep 3  # Brief wait for any auto-connect to initiate
+    current_connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
+
+    if [ "$current_connection_state" = "Connected" ] || [ "$current_connection_state" = "Connecting" ]; then
+        log_message "DETECTED: PIA auto-connected on launch (state: $current_connection_state)"
+
+        # Wait for connection to fully establish if still connecting
+        if [ "$current_connection_state" = "Connecting" ]; then
+            log_message "Waiting for auto-connect to complete..."
+            for wait_attempt in $(seq 1 10); do
+                sleep 2
+                current_connection_state=$("$PIA_CTL" get connectionstate 2>/dev/null)
+                log_message "Auto-connect state: $current_connection_state (check $wait_attempt/10)"
+
+                if [ "$current_connection_state" = "Connected" ]; then
+                    log_message "SUCCESS: PIA auto-connect completed successfully"
+                    pia_connected=true
+                    break
+                elif [ "$current_connection_state" = "Disconnected" ]; then
+                    log_message "WARNING: Auto-connect failed, returned to Disconnected"
+                    break
+                fi
+            done
+
+            if [ "$current_connection_state" != "Connected" ]; then
+                log_message "WARNING: Auto-connect did not complete successfully (final state: $current_connection_state)"
+            fi
+        else
+            # Already connected
+            pia_connected=true
+        fi
+
+        # Clean up state file since connection is handled
+        rm -f "$STATE_FILE"
+    fi
+
     # Check if PIA VPN was connected before sleep
     if [ -f "$STATE_FILE" ]; then
         log_message "PIA VPN was connected before sleep"

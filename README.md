@@ -13,13 +13,13 @@ This solution uses `sleepwatcher` (via Homebrew) to monitor system sleep events 
 - **Timeout Handling**: Falls back to force-kill if graceful disconnect times out
 - **Auto Reconnect**: Automatically reconnects VPN after wake (enabled by default)
 
-### New: Torrent Client Management
+### Torrent Client Management
 - **Graceful App Shutdown**: Closes torrent clients before VPN disconnect
 - **Multiple Client Support**: Handles Transmission, qBittorrent, Nicotine+, VLC, BiglyBT
 - **Optional Auto-Reopen**: Can reopen torrent clients after wake (disabled by default)
 - **State Persistence**: Remembers which apps were running before sleep
 
-### New: External Drive Management
+### External Drive Management
 - **Safe Drive Ejection**: Ejects external drive "Big Dawg" before sleep
 - **Automatic Remounting**: Remounts drive after wake if it was mounted before
 - **Verification**: Confirms successful ejection before allowing sleep
