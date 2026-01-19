@@ -2,7 +2,10 @@
 
 **Prevent macOS Kernel Panics with Smart Sleep Management**
 
-Automatically manages torrent clients, external drives, and Private Internet Access VPN before/after macOS sleep to prevent kernel panics and data loss.
+Automatically manages torrent clients, external drives, and Private Internet Access VPN before/after macOS sleep to prevent kernel panics and data loss. Managed via menubar or directly via config files.
+
+<img width="433" height="343" alt="SCR-20260119-ohoe" src="https://github.com/user-attachments/assets/a479a45b-3d70-431e-b0a6-59273db68cf1" />
+
 
 ## Overview
 
