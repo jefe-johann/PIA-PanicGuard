@@ -26,57 +26,37 @@ log_message() {
 
 # Function to disconnect PIA gracefully with timeout
 disconnect_pia() {
-    log_message "Attempting graceful PIA disconnect and quit..."
-    
-    # First try to disable background mode (helps with cleaner shutdown)
-    log_message "Disabling PIA background mode..."
-    "$PIA_CTL" background disable 2>&1 | while IFS= read -r line; do
-        log_message "piactl background disable: $line"
-    done
-    
-    # Then disconnect (if still connected)
-    "$PIA_CTL" disconnect 2>&1 | while IFS= read -r line; do
-        log_message "piactl disconnect: $line"
-    done
-    
-    # Wait a moment for disconnect to process
+    log_message "Disconnecting and quitting PIA GUI..."
+
+    # Disable background mode and disconnect
+    "$PIA_CTL" background disable 2>/dev/null
+    "$PIA_CTL" disconnect 2>/dev/null
     sleep 3
-    
-    # Now try to quit the PIA application gracefully
-    log_message "Attempting to quit PIA application gracefully..."
+
+    # Try to quit gracefully
     if osascript -e 'quit app "Private Internet Access"' 2>/dev/null; then
-        log_message "PIA quit command sent successfully"
-        
-        # Wait and check for graceful quit completion (retry for up to 15 seconds)
+        # Wait up to 15 seconds for graceful quit
         for attempt in $(seq 1 8); do
             sleep 2
             if ! pgrep -x "Private Internet Access" > /dev/null; then
-                log_message "SUCCESS: PIA GUI gracefully quit after ${attempt}x2 seconds"
+                log_message "PIA GUI quit successfully"
                 return 0
             fi
-            log_message "Waiting for graceful GUI quit... (attempt $attempt/8)"
         done
-        
-        log_message "WARNING: PIA GUI still running after 15 seconds graceful quit timeout"
+        log_message "WARNING: PIA GUI still running after 15s timeout"
         return 1
     else
-        log_message "WARNING: Failed to send quit command to PIA application"
+        log_message "WARNING: Failed to send quit command"
         return 1
     fi
 }
 
 # Function to force kill PIA GUI if graceful quit fails
 force_kill_pia() {
-    log_message "Attempting to force kill PIA GUI (daemon will remain for killswitch)..."
-    
-    # Kill only the GUI process, leave daemon for killswitch
     if pgrep -x "Private Internet Access" > /dev/null; then
         log_message "Force killing PIA GUI"
         pkill -9 -x "Private Internet Access"
-        log_message "Force kill attempted. Waiting 2 seconds..."
         sleep 2
-    else
-        log_message "PIA GUI already not running"
     fi
 }
 
@@ -95,121 +75,90 @@ verify_gui_terminated() {
 close_torrent_app() {
     local app_name="$1"
     if pgrep -f "$app_name" > /dev/null; then
-        log_message "$app_name is running. Attempting graceful shutdown..."
-        
-        # Record that this app was running
+        log_message "Closing $app_name"
         echo "$app_name" >> "$TORRENT_STATE_FILE"
-        
-        # Try graceful shutdown
         pkill -f "$app_name"
-        
+
         # Wait for app to close
         for i in $(seq 1 $APP_SHUTDOWN_TIMEOUT); do
             if ! pgrep -f "$app_name" > /dev/null; then
-                log_message "$app_name shut down successfully"
                 return 0
             fi
             sleep 1
         done
-        
-        log_message "WARNING: $app_name still running after ${APP_SHUTDOWN_TIMEOUT}s timeout"
+
+        log_message "WARNING: $app_name still running after ${APP_SHUTDOWN_TIMEOUT}s"
         return 1
-    else
-        log_message "$app_name is not running"
-        return 0
     fi
+    return 0
 }
 
 # Function to close all torrent applications
 close_torrent_apps() {
     if [ "$MANAGE_TORRENTS" != "true" ]; then
-        log_message "Torrent management disabled, skipping"
         return 0
     fi
-    
-    log_message "=== Closing Torrent Applications ==="
-    
-    # Clear previous state file
+
+    log_message "=== Closing Torrents ==="
     rm -f "$TORRENT_STATE_FILE"
-    
+
     local failed_apps=()
     for app in "${TORRENT_APPS[@]}"; do
         if ! close_torrent_app "$app"; then
             failed_apps+=("$app")
         fi
     done
-    
+
     if [ ${#failed_apps[@]} -gt 0 ]; then
-        log_message "WARNING: Some apps failed to close gracefully: ${failed_apps[*]}"
-        log_message "Attempting force kill..."
+        log_message "Force killing: ${failed_apps[*]}"
         for app in "${failed_apps[@]}"; do
             pkill -9 -f "$app" 2>/dev/null
-            log_message "Force killed: $app"
         done
         sleep 2
     fi
-    
-    log_message "Torrent application shutdown complete"
 }
 
 # Function to eject external drive
 eject_external_drive() {
     if [ "$MANAGE_EXTERNAL_DRIVE" != "true" ]; then
-        log_message "External drive management disabled, skipping"
         return 0
     fi
-    
-    log_message "=== Managing External Drive: $EXTERNAL_DRIVE_NAME ==="
-    
-    # Check if drive exists and is mounted
+
+    log_message "=== Ejecting Drive ==="
+
     local drive_info=$(diskutil info "$EXTERNAL_DRIVE_NAME" 2>&1)
     if [[ $drive_info == *"could not find disk"* ]]; then
-        log_message "'$EXTERNAL_DRIVE_NAME' is not currently mounted or doesn't exist"
+        log_message "Drive '$EXTERNAL_DRIVE_NAME' not found"
         rm -f "$DRIVE_STATE_FILE"
         return 0
     fi
-    
+
     if [[ $drive_info == *"Mounted: Yes"* ]]; then
-        log_message "'$EXTERNAL_DRIVE_NAME' is mounted. Recording state and ejecting..."
-        
-        # Record that drive was mounted
         echo "mounted" > "$DRIVE_STATE_FILE"
-        
-        # Get disk identifier
         local disk_identifier=$(echo "$drive_info" | awk '/Device Identifier:/ {print $3}')
-        log_message "Disk identifier: $disk_identifier"
-        
-        # Attempt ejection
-        if diskutil eject "$disk_identifier"; then
-            log_message "'$EXTERNAL_DRIVE_NAME' ejection initiated. Verifying..."
-            
+
+        if diskutil eject "$disk_identifier" >/dev/null 2>&1; then
             # Verify ejection
             for attempt in $(seq 1 $DRIVE_EJECTION_ATTEMPTS); do
                 sleep $DRIVE_EJECTION_WAIT
-                log_message "Verification attempt $attempt..."
-                
                 if diskutil info "$disk_identifier" 2>&1 | grep -q "Mounted: No"; then
-                    log_message "SUCCESS: '$EXTERNAL_DRIVE_NAME' successfully ejected"
+                    log_message "Drive ejected successfully"
                     return 0
                 fi
             done
-            
-            log_message "WARNING: Failed to verify '$EXTERNAL_DRIVE_NAME' ejection after $DRIVE_EJECTION_ATTEMPTS attempts"
+            log_message "WARNING: Drive ejection verification failed"
             return 1
         else
-            log_message "ERROR: Failed to eject '$EXTERNAL_DRIVE_NAME'. It might be in use"
+            log_message "ERROR: Failed to eject drive (might be in use)"
             return 1
         fi
     else
-        log_message "'$EXTERNAL_DRIVE_NAME' is already ejected"
         rm -f "$DRIVE_STATE_FILE"
-        return 0
     fi
 }
 
 # Function to cleanup on exit
 cleanup_on_exit() {
-    log_message "Sleep handler interrupted or completed, removing lock file"
     rm -f "$LOCK_FILE"
 }
 
@@ -217,100 +166,46 @@ cleanup_on_exit() {
 trap cleanup_on_exit EXIT INT TERM
 
 # Main execution
-log_message "=== Enhanced PIA Sleep Handler Started ==="
-
-# Create lock file to prevent race conditions with wake script
+log_message "░▒▓█►─── ✨🌜 SLEEPY TIME 🌛✨ ───◄█▓▒░"
 echo "$(date '+%b %d %Y %I:%M%p')" > "$LOCK_FILE"
-log_message "Created lock file to coordinate with wake handler"
 
-log_message "Configuration: Torrents=$MANAGE_TORRENTS, Drive=$MANAGE_EXTERNAL_DRIVE"
-
-# Step 1: Close torrent applications first (they may be using the external drive)
-close_torrent_apps
-
-# Step 2: Eject external drive
-eject_external_drive
-
-# Step 3: Handle PIA VPN (existing logic)
-log_message "=== Managing PIA VPN ==="
-
-# Check if piactl is available
-if [ ! -x "$PIA_CTL" ]; then
-    log_message "ERROR: piactl not found at $PIA_CTL"
-    exit 1
-fi
-
-# Check current connection state with multiple samples for reliability
-# Wait briefly to allow any transitional states to settle
-sleep 2
-
-# Take 3 readings to ensure accuracy
-connection_state_1=$("$PIA_CTL" get connectionstate 2>/dev/null)
-sleep 1
-connection_state_2=$("$PIA_CTL" get connectionstate 2>/dev/null)
-sleep 1
-connection_state_3=$("$PIA_CTL" get connectionstate 2>/dev/null)
-
-# Use the most common reading (or last if all different)
-if [ "$connection_state_1" = "$connection_state_2" ]; then
-    connection_state="$connection_state_1"
-elif [ "$connection_state_2" = "$connection_state_3" ]; then
-    connection_state="$connection_state_2"
-else
-    connection_state="$connection_state_3"
-fi
-
-log_message "PIA connection state readings: [$connection_state_1, $connection_state_2, $connection_state_3] -> using: $connection_state"
-
-# Check if PIA GUI app is running (track this separately from connection state)
+# Check if PIA GUI is running
 if pgrep -x "Private Internet Access" > /dev/null; then
-    # PIA GUI was running - mark it so we reopen it on wake
     echo "running" > "$PIA_RUNNING_STATE_FILE"
-    log_message "PIA GUI was running - will reopen after wake"
-
-    # Now check if it was also connected
-    if [ "$connection_state" = "Connected" ]; then
-        echo "connected" > "$STATE_FILE"
-        log_message "PIA VPN was connected - will reconnect after wake"
-    else
-        log_message "PIA VPN was NOT connected (state: $connection_state) - will reopen GUI but not connect"
-        rm -f "$STATE_FILE"
-    fi
+    echo "connected" > "$STATE_FILE"
+    log_message "PIA running - will reconnect on wake"
 else
-    # PIA GUI was not running - don't reopen it on wake
-    log_message "PIA GUI was not running - will not start after wake"
+    log_message "PIA not running"
     rm -f "$PIA_RUNNING_STATE_FILE"
     rm -f "$STATE_FILE"
 fi
 
-# Check if PIA GUI app is running (regardless of connection state)
+# Close torrents and eject drive
+close_torrent_apps
+eject_external_drive
+
+# Disconnect and quit PIA
+log_message "=== Shutting Down PIA ==="
+
 if ! pgrep -x "Private Internet Access" > /dev/null; then
-    log_message "No PIA GUI running. Nothing to quit (daemon can stay for killswitch)."
-    log_message "=== Enhanced Sleep Handler Completed ==="
+    log_message "PIA already closed"
     exit 0
 fi
 
-log_message "PIA GUI detected - proceeding with graceful quit (daemon will remain for killswitch)"
-
-# Attempt graceful disconnect and GUI quit
+# Try graceful quit
 if disconnect_pia; then
-    # Verify GUI is actually terminated
     if verify_gui_terminated; then
-        log_message "=== Enhanced Sleep Handler Completed Successfully ==="
+        log_message "💤 Sleep complete"
         exit 0
-    else
-        log_message "Graceful quit succeeded but GUI still running"
-        force_kill_pia
     fi
+    force_kill_pia
 else
-    log_message "Graceful quit failed, attempting force kill of GUI"
     force_kill_pia
 fi
 
-# Final verification after force kill
 if ! verify_gui_terminated; then
     log_message "WARNING: PIA GUI may still be running"
 fi
 
-log_message "=== Enhanced Sleep Handler Completed ==="
+log_message "💤 Sleep complete"
 exit 0
