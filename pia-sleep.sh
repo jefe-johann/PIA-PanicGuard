@@ -77,7 +77,13 @@ close_torrent_app() {
     if pgrep -f "$app_name" > /dev/null; then
         log_message "Closing $app_name"
         echo "$app_name" >> "$TORRENT_STATE_FILE"
-        pkill -f "$app_name"
+
+        # Use osascript for Transmission so it saves state properly before quitting
+        if [ "$app_name" = "Transmission" ]; then
+            osascript -e 'tell application "Transmission" to quit' 2>/dev/null || pkill -f "$app_name"
+        else
+            pkill -f "$app_name"
+        fi
 
         # Wait for app to close
         for i in $(seq 1 $APP_SHUTDOWN_TIMEOUT); do
