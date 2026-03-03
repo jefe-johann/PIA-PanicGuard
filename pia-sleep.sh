@@ -78,11 +78,13 @@ close_torrent_app() {
         log_message "Closing $app_name"
         echo "$app_name" >> "$TORRENT_STATE_FILE"
 
-        # Use osascript for Transmission so it saves state properly before quitting
+        # SIGTERM triggers clean shutdown for all apps. For Transmission specifically,
+        # this calls tr_sessionClose() which saves all torrent state (resume data, progress).
+        # We use -x for Transmission to avoid matching unrelated processes.
         if [ "$app_name" = "Transmission" ]; then
-            osascript -e 'tell application "Transmission" to quit' 2>/dev/null || pkill -f "$app_name"
+            pkill -TERM -x "$app_name"
         else
-            pkill -f "$app_name"
+            pkill -TERM -f "$app_name"
         fi
 
         # Wait for app to close

@@ -91,7 +91,10 @@ reopen_torrent_apps() {
     while IFS= read -r app_name; do
         log_message "Opening: $app_name"
         case "$app_name" in
-            "Transmission") open -a Transmission; resume_transmission_torrents ;;
+            # TESTING: graceful SIGTERM shutdown should preserve per-torrent pause state
+            # so we may not need to force-start all torrents anymore
+            # "Transmission") open -a Transmission; resume_transmission_torrents ;;
+            "Transmission") open -a Transmission ;;
             "qbittorrent") open -a qBittorrent ;;
             "Nicotine+") open -a "Nicotine+" ;;
             "VLC") open -a VLC ;;
