@@ -47,35 +47,24 @@ mount_external_drive() {
     fi
 }
 
-# Function to resume all Transmission torrents via its RPC API
+# Function to resume all Transmission torrents via transmission-remote
 resume_transmission_torrents() {
     log_message "Resuming Transmission torrents..."
 
     # Wait for RPC to become available (up to 30s)
-    local session_id=""
     for attempt in $(seq 1 12); do
         sleep 2.5
-        local response
-        response=$(curl -s -i --max-time 3 http://localhost:9091/transmission/rpc 2>/dev/null)
-        session_id=$(echo "$response" | grep -i "X-Transmission-Session-Id:" | tr -d '\r' | awk '{print $2}')
-        [ -n "$session_id" ] && break
+        if curl -s --max-time 3 http://localhost:9091/transmission/rpc >/dev/null 2>&1; then
+            break
+        fi
+        [ $attempt -eq 12 ] && { log_message "WARNING: Could not reach Transmission RPC - torrents not resumed"; return 1; }
     done
 
-    if [ -z "$session_id" ]; then
-        log_message "WARNING: Could not reach Transmission RPC - torrents not resumed"
-        return 1
-    fi
-
     local result
-    result=$(curl -s --max-time 5 \
-        -H "X-Transmission-Session-Id: $session_id" \
-        -d '{"method":"torrent-start","arguments":{}}' \
-        http://localhost:9091/transmission/rpc 2>/dev/null)
-
-    if echo "$result" | grep -q '"result":"success"'; then
+    if result=$(/opt/homebrew/bin/transmission-remote localhost:9091 -tall --start 2>&1); then
         log_message "Transmission torrents started successfully"
     else
-        log_message "WARNING: Transmission RPC start-all failed: $result"
+        log_message "WARNING: Transmission resume failed: $result"
     fi
 }
 

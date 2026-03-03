@@ -91,8 +91,8 @@ install_config() {
     # Create /usr/local/etc directory if it doesn't exist
     mkdir -p "/usr/local/etc"
 
-    # Copy configuration file
-    cp "$SCRIPT_DIR/pia-sleep.conf" "/usr/local/etc/"
+    # Copy configuration file (|| true handles case where source is a symlink to destination)
+    cp "$SCRIPT_DIR/pia-sleep.conf" "/usr/local/etc/" 2>/dev/null || true
 
     # Set permissions
     chmod 644 "/usr/local/etc/pia-sleep.conf"
