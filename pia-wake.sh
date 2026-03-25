@@ -4,10 +4,11 @@
 # Handles external drive mounting, optional torrent app reopening, and PIA VPN reconnection
 
 LOG_FILE="/var/log/pia-sleep.log"
-STATE_FILE="/tmp/pia-was-connected"
-PIA_RUNNING_STATE_FILE="/tmp/pia-was-running"
-TORRENT_STATE_FILE="/tmp/torrents-were-running"
-DRIVE_STATE_FILE="/tmp/drive-was-mounted"
+STATE_DIR="/usr/local/var/pia-sleep"
+STATE_FILE="$STATE_DIR/pia-was-connected"
+PIA_RUNNING_STATE_FILE="$STATE_DIR/pia-was-running"
+TORRENT_STATE_FILE="$STATE_DIR/torrents-were-running"
+DRIVE_STATE_FILE="$STATE_DIR/drive-was-mounted"
 LOCK_FILE="/tmp/pia-sleep-in-progress"
 CONFIG_FILE="/usr/local/etc/pia-sleep.conf"
 PIA_CTL="/usr/local/bin/piactl"
@@ -78,6 +79,11 @@ reopen_torrent_apps() {
 
     if [ "$vpn_safe" != "true" ]; then
         log_message "SECURITY: VPN not connected - torrents will remain closed"
+        return 0
+    fi
+
+    if ! diskutil info "$EXTERNAL_DRIVE_NAME" 2>/dev/null | grep -q "Mounted:[[:space:]]*Yes"; then
+        log_message "WARNING: Drive '$EXTERNAL_DRIVE_NAME' not mounted - torrents will remain closed"
         return 0
     fi
 

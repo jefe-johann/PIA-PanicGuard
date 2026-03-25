@@ -175,10 +175,10 @@ For detailed documentation, see [swiftbar/README.md](swiftbar/README.md)
 - **`/var/log/pia-sleepwatcher.log`** - Sleepwatcher daemon stdout
 - **`/var/log/pia-sleepwatcher-error.log`** - Sleepwatcher daemon errors
 
-### Temporary Files (Created/Removed Automatically)
-- **`/tmp/pia-was-connected`** - PIA connection state
-- **`/tmp/torrents-were-running`** - List of torrent apps that were running
-- **`/tmp/drive-was-mounted`** - External drive mount state
+### State Files (Created/Removed Automatically)
+- **`/usr/local/var/pia-sleep/pia-was-connected`** - PIA connection state
+- **`/usr/local/var/pia-sleep/torrents-were-running`** - List of torrent apps that were running
+- **`/usr/local/var/pia-sleep/drive-was-mounted`** - External drive mount state
 
 ### Project Directory Files (This Directory)
 - **`pia-sleep.conf`** - Symlink to system configuration file at `/usr/local/etc/pia-sleep.conf`

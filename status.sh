@@ -87,8 +87,8 @@ if [ "$MANAGE_TORRENTS" = "true" ]; then
     echo -e "  ${BLUE}→${NC} $running_count of $total_count configured apps are running"
     
     # Check state file
-    if [ -f "/tmp/torrents-were-running" ]; then
-        saved_apps=$(wc -l < "/tmp/torrents-were-running")
+    if [ -f "/usr/local/var/pia-sleep/torrents-were-running" ]; then
+        saved_apps=$(wc -l < "/usr/local/var/pia-sleep/torrents-were-running")
         echo -e "  ${YELLOW}ℹ${NC} State file exists: $saved_apps apps were running before last sleep"
     fi
 else
@@ -110,7 +110,7 @@ if [ "$MANAGE_EXTERNAL_DRIVE" = "true" ]; then
     fi
     
     # Check state file
-    if [ -f "/tmp/drive-was-mounted" ]; then
+    if [ -f "/usr/local/var/pia-sleep/drive-was-mounted" ]; then
         echo -e "  ${YELLOW}ℹ${NC} State file exists: Drive was mounted before last sleep"
     fi
 else

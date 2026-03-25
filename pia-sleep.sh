@@ -4,10 +4,11 @@
 # Gracefully handles torrent clients, external drives, and PIA VPN before system sleep
 
 LOG_FILE="/var/log/pia-sleep.log"
-STATE_FILE="/tmp/pia-was-connected"
-PIA_RUNNING_STATE_FILE="/tmp/pia-was-running"
-TORRENT_STATE_FILE="/tmp/torrents-were-running"
-DRIVE_STATE_FILE="/tmp/drive-was-mounted"
+STATE_DIR="/usr/local/var/pia-sleep"
+STATE_FILE="$STATE_DIR/pia-was-connected"
+PIA_RUNNING_STATE_FILE="$STATE_DIR/pia-was-running"
+TORRENT_STATE_FILE="$STATE_DIR/torrents-were-running"
+DRIVE_STATE_FILE="$STATE_DIR/drive-was-mounted"
 LOCK_FILE="/tmp/pia-sleep-in-progress"
 CONFIG_FILE="/usr/local/etc/pia-sleep.conf"
 TIMEOUT=10
@@ -174,6 +175,7 @@ cleanup_on_exit() {
 trap cleanup_on_exit EXIT INT TERM
 
 # Main execution
+mkdir -p "$STATE_DIR"
 log_message "░▒▓█►─── ✨🌜 SLEEPY TIME 🌛✨ ───◄█▓▒░"
 echo "$(date '+%b %d %Y %I:%M%p')" > "$LOCK_FILE"
 

@@ -106,9 +106,7 @@ cleanup_files() {
     log_and_echo "INFO" "Cleaning up temporary files..."
     
     # Remove state files
-    rm -f "/tmp/pia-was-connected"
-    rm -f "/tmp/torrents-were-running"
-    rm -f "/tmp/drive-was-mounted"
+    rm -rf "/usr/local/var/pia-sleep"
     
     # Ask about log files
     echo
