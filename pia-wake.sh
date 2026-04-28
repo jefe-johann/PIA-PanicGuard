@@ -50,7 +50,20 @@ mount_external_drive() {
 
 # Function to resume all Transmission torrents via transmission-remote
 resume_transmission_torrents() {
+    local transmission_remote=""
+
     log_message "Resuming Transmission torrents..."
+
+    if transmission_remote=$(command -v transmission-remote 2>/dev/null); then
+        :
+    elif [ -x /opt/homebrew/bin/transmission-remote ]; then
+        transmission_remote="/opt/homebrew/bin/transmission-remote"
+    elif [ -x /usr/local/bin/transmission-remote ]; then
+        transmission_remote="/usr/local/bin/transmission-remote"
+    else
+        log_message "WARNING: transmission-remote not found - torrents not resumed"
+        return 1
+    fi
 
     # Wait for RPC to become available (up to 30s)
     for attempt in $(seq 1 12); do
@@ -62,7 +75,7 @@ resume_transmission_torrents() {
     done
 
     local result
-    if result=$(/opt/homebrew/bin/transmission-remote localhost:9091 -tall --start 2>&1); then
+    if result=$("$transmission_remote" localhost:9091 -tall --start 2>&1); then
         log_message "Transmission torrents started successfully"
     else
         log_message "WARNING: Transmission resume failed: $result"
@@ -97,10 +110,7 @@ reopen_torrent_apps() {
     while IFS= read -r app_name; do
         log_message "Opening: $app_name"
         case "$app_name" in
-            # TESTING: graceful SIGTERM shutdown should preserve per-torrent pause state
-            # so we may not need to force-start all torrents anymore
-            # "Transmission") open -a Transmission; resume_transmission_torrents ;;
-            "Transmission") open -a Transmission ;;
+            "Transmission") open -a Transmission; resume_transmission_torrents ;;
             "qbittorrent") open -a qBittorrent ;;
             "Nicotine+") open -a "Nicotine+" ;;
             "VLC") open -a VLC ;;
